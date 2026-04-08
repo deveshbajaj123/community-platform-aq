@@ -211,7 +211,7 @@ const DirectorManagement = () => {
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium text-gray-900">{director.fullName}</h3>
                       {director.isSuperAdmin && (
-                        <Badge variant="coral" size="sm">
+                        <Badge variant="error" size="sm">
                           <ShieldCheckIcon className="w-3 h-3 mr-1" />
                           Super Admin
                         </Badge>

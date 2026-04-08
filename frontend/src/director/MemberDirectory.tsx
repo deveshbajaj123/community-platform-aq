@@ -125,21 +125,21 @@ const MemberDirectory = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {members.map(member => (
               <Link
-                key={member.member_id}
+                key={member.memberId}
                 to={`/profile/${member.uuid}`}
               >
                 <Card hover className="h-full">
                   <Card.Body>
                     <div className="flex items-start gap-4">
                       <Avatar
-                        src={member.avatar_url}
-                        name={member.full_name}
+                        src={member.avatarUrl}
+                        name={member.fullName}
                         size="lg"
                       />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
                           <h3 className="font-semibold text-gray-900 truncate">
-                            {member.full_name}
+                            {member.fullName}
                           </h3>
                           {member.role === 'director' && (
                             <Badge variant="forest" size="sm">Director</Badge>
@@ -151,16 +151,16 @@ const MemberDirectory = () => {
                             <EnvelopeIcon className="w-4 h-4 flex-shrink-0" />
                             <span className="truncate">{member.email}</span>
                           </div>
-                          {member.class_grade && (
+                          {member.classGrade && (
                             <div className="flex items-center gap-1">
                               <AcademicCapIcon className="w-4 h-4 flex-shrink-0" />
-                              <span>{member.class_grade}</span>
+                              <span>{member.classGrade}</span>
                             </div>
                           )}
                         </div>
 
                         <p className="text-xs text-gray-400 mt-2">
-                          Joined {formatDate(member.created_at)}
+                          Joined {formatDate(member.createdAt)}
                         </p>
                       </div>
                     </div>

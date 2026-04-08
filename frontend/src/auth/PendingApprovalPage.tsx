@@ -1,17 +1,12 @@
-import { useEffect, useState } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
 import { ClockIcon } from '@heroicons/react/24/outline'
 import Button from '../components/Button'
 
 const PendingApprovalPage = () => {
   const navigate = useNavigate()
-  const location = useLocation()
   const { member, isAuthenticated, refreshMember, logout } = useAuth()
-  const [justRegistered] = useState(() => {
-    // Check if user just came from registration
-    return location.state?.fromRegistration || !isAuthenticated
-  })
 
   // Periodically check if approved (only if authenticated)
   useEffect(() => {
