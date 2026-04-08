@@ -1,0 +1,178 @@
+@import "tailwindcss";
+
+/* AquaTerra Custom Theme */
+@theme {
+  /* Primary Colors */
+  --color-forest-50: #e8f5e9;
+  --color-forest-100: #c8e6c9;
+  --color-forest-200: #a5d6a7;
+  --color-forest-300: #81c784;
+  --color-forest-400: #66bb6a;
+  --color-forest-500: #2D6A4F;
+  --color-forest-600: #256244;
+  --color-forest-700: #1e5539;
+  --color-forest-800: #17482e;
+  --color-forest-900: #103b23;
+
+  /* Accent Colors */
+  --color-orange-50: #fff3e0;
+  --color-orange-100: #ffe0b2;
+  --color-orange-200: #ffcc80;
+  --color-orange-300: #ffb74d;
+  --color-orange-400: #ffa726;
+  --color-orange-500: #E07B39;
+  --color-orange-600: #d86f2d;
+  --color-orange-700: #c56321;
+  --color-orange-800: #b25715;
+  --color-orange-900: #9f4b09;
+
+  /* Neutral Colors */
+  --color-cream-50: #FEFDFB;
+  --color-cream-100: #F9F6F0;
+  --color-cream-200: #F0EBE1;
+  --color-cream-300: #E8DFD0;
+  --color-cream-400: #D9CDB8;
+  --color-cream-500: #CABBA0;
+
+  /* Aliases */
+  --color-primary-50: var(--color-forest-50);
+  --color-primary-100: var(--color-forest-100);
+  --color-primary-200: var(--color-forest-200);
+  --color-primary-300: var(--color-forest-300);
+  --color-primary-400: var(--color-forest-400);
+  --color-primary-500: var(--color-forest-500);
+  --color-primary-600: var(--color-forest-600);
+  --color-primary-700: var(--color-forest-700);
+  --color-primary-800: var(--color-forest-800);
+  --color-primary-900: var(--color-forest-900);
+
+  --color-accent-500: var(--color-orange-500);
+}
+
+/* Base styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-cream-100 text-gray-900 antialiased;
+  font-family: 'Geist', system-ui, -apple-system, sans-serif;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Halant', serif;
+  @apply font-semibold;
+}
+
+/* Focus styles */
+:focus-visible {
+  @apply outline-2 outline-offset-2 outline-forest-500;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-cream-200;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-cream-400 rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-cream-500;
+}
+
+/* Animation utilities */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-soft {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@utility animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@utility animate-slide-up {
+  animation: slideUp 0.4s ease-out forwards;
+}
+
+@utility animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* Stagger children animations */
+.stagger-children > * {
+  opacity: 0;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
+
+/* Wavy divider */
+.wavy-divider {
+  position: relative;
+  height: 60px;
+  overflow: hidden;
+}
+
+.wavy-divider::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1200 120' preserveAspectRatio='none'%3E%3Cpath d='M321.39,56.44c58-10.79,114.16-30.13,172-41.86,82.39-16.72,168.19-17.73,250.45-.39C823.78,31,906.67,72,985.66,92.83c70.05,18.48,146.53,26.09,214.34,3V0H0V27.35A600.21,600.21,0,0,0,321.39,56.44Z' fill='%23F9F6F0'/%3E%3C/svg%3E") no-repeat bottom;
+  background-size: cover;
+}
+
+/* Card hover effect */
+.card-hover {
+  @apply transition-all duration-200;
+}
+
+.card-hover:hover {
+  @apply shadow-lg -translate-y-0.5;
+}
+
+/* Skeleton loading */
+.skeleton {
+  @apply bg-cream-300 rounded;
+  animation: pulse-soft 2s ease-in-out infinite;
+}
