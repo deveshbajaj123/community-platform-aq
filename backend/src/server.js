@@ -31,10 +31,7 @@ if (process.env.TRUST_PROXY || process.env.NODE_ENV === 'production') {
   console.log(`Trust proxy enabled: ${trustProxy}`);
 }
 
-// Security middleware
-app.use(helmetConfig);
-
-// CORS configuration
+// CORS configuration — must come before other middleware to handle preflight
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -53,6 +50,9 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 app.use(cors(corsOptions));
+
+// Security middleware
+app.use(helmetConfig);
 
 // Body parsing middleware (MUST come before hpp and xss-clean)
 // Limit JSON/form body size to prevent DoS attacks
