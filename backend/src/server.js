@@ -34,6 +34,7 @@ if (process.env.TRUST_PROXY || process.env.NODE_ENV === 'production') {
 // CORS configuration — must come before other middleware to handle preflight
 const allowedOrigins = [
   process.env.FRONTEND_URL,
+  'https://keen-surprise-production-9755.up.railway.app',
   'http://localhost:5173',
   'http://localhost:3000',
 ].filter(Boolean).map(url => url.replace(/\/$/, '')); // strip trailing slashes
