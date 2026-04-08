@@ -32,19 +32,25 @@ if (process.env.TRUST_PROXY || process.env.NODE_ENV === 'production') {
 }
 
 // CORS configuration — must come before other middleware to handle preflight
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  'http://localhost:5173',
+  'http://localhost:3000',
+].filter(Boolean).map(url => url.replace(/\/$/, '')); // strip trailing slashes
+
+console.log('Allowed CORS origins:', allowedOrigins);
+
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
-    // Allow localhost on any port in development
-    if (process.env.NODE_ENV !== 'production' && origin.startsWith('http://localhost:')) {
+    // Check against allowed origins (strip trailing slash from incoming origin too)
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    if (allowedOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
     }
-    // Allow configured frontend URL
-    if (origin === process.env.FRONTEND_URL) {
-      return callback(null, true);
-    }
-    callback(new Error('Not allowed by CORS'));
+    console.warn('CORS blocked origin:', origin);
+    callback(null, false);
   },
   credentials: true,
   optionsSuccessStatus: 200
