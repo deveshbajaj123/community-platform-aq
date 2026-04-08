@@ -20,14 +20,13 @@ const achievementRoutes = require('./routes/achievementRoutes');
 
 const app = express();
 
-// Trust proxy - required when behind reverse proxy (nginx, load balancer, etc.)
-// This ensures req.ip returns the client's real IP instead of the proxy's IP
-// Set TRUST_PROXY=1 in production when behind a single proxy
-// Set TRUST_PROXY=2 for two proxies, or 'loopback' for localhost proxies only
-if (process.env.TRUST_PROXY) {
-  const trustProxy = process.env.TRUST_PROXY === 'true' ? 1 :
-                     isNaN(process.env.TRUST_PROXY) ? process.env.TRUST_PROXY :
-                     parseInt(process.env.TRUST_PROXY, 10);
+// Trust proxy - required when behind reverse proxy (Railway, Render, nginx, etc.)
+if (process.env.TRUST_PROXY || process.env.NODE_ENV === 'production') {
+  const trustProxy = process.env.TRUST_PROXY
+    ? (process.env.TRUST_PROXY === 'true' ? 1 :
+       isNaN(process.env.TRUST_PROXY) ? process.env.TRUST_PROXY :
+       parseInt(process.env.TRUST_PROXY, 10))
+    : 1;
   app.set('trust proxy', trustProxy);
   console.log(`Trust proxy enabled: ${trustProxy}`);
 }
