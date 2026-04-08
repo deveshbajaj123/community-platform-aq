@@ -7,24 +7,27 @@ let containerClient;
 const CONTAINER_NAME = process.env.AZURE_CONTAINER_NAME || 'community-posts';
 
 async function initializeStorage() {
-  if (process.env.AZURE_STORAGE_CONNECTION_STRING) {
-    try {
-      blobServiceClient = BlobServiceClient.fromConnectionString(
-        process.env.AZURE_STORAGE_CONNECTION_STRING
-      );
-      containerClient = blobServiceClient.getContainerClient(CONTAINER_NAME);
+  const connectionString = process.env.AZURE_STORAGE_CONNECTION_STRING;
 
-      // Create container if it doesn't exist
-      await containerClient.createIfNotExists({
-        access: 'blob' // Allow public read access for blobs
-      });
+  // Skip Azure in production if using dev storage emulator or not configured
+  if (!connectionString || connectionString === 'UseDevelopmentStorage=true') {
+    console.log('Azure Blob Storage not configured - file uploads will be disabled');
+    return;
+  }
 
-      console.log(`Azure Blob Storage initialized: container '${CONTAINER_NAME}'`);
-    } catch (error) {
-      console.error('Failed to initialize Azure Blob Storage:', error.message);
-    }
-  } else {
-    console.log('Azure Blob Storage not configured - using local storage fallback');
+  try {
+    blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+    containerClient = blobServiceClient.getContainerClient(CONTAINER_NAME);
+
+    // Create container if it doesn't exist
+    await containerClient.createIfNotExists({
+      access: 'blob' // Allow public read access for blobs
+    });
+
+    console.log(`Azure Blob Storage initialized: container '${CONTAINER_NAME}'`);
+  } catch (error) {
+    console.error('Failed to initialize Azure Blob Storage:', error.message);
+    console.log('File uploads will be disabled');
   }
 }
 
