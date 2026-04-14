@@ -13,6 +13,7 @@ const AuditActions = {
   MEMBER_APPROVED: 'member_approved',
   MEMBER_REJECTED: 'member_rejected',
   MEMBER_SUSPENDED: 'member_suspended',
+  MEMBER_DELETED: 'member_deleted',
   PROFILE_UPDATED: 'profile_updated',
 
   // Posts

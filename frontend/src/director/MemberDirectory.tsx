@@ -1,15 +1,21 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeftIcon, MagnifyingGlassIcon, EnvelopeIcon, AcademicCapIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, MagnifyingGlassIcon, EnvelopeIcon, AcademicCapIcon, TrashIcon } from '@heroicons/react/24/outline'
 import directorService, { DirectoryMember } from '../services/directorService'
 import { useDebounce } from '../hooks/useDebounce'
+import { useAuth } from '../auth/AuthContext'
 import Avatar from '../components/Avatar'
+import Alert from '../components/Alert'
 import Badge from '../components/Badge'
 import Button from '../components/Button'
 import Card from '../components/Card'
+import Modal from '../components/Modal'
 import Spinner from '../components/Spinner'
 
 const MemberDirectory = () => {
+  const { member: currentMember } = useAuth()
+  const isSuperAdmin = currentMember?.isSuperAdmin || false
+
   const [members, setMembers] = useState<DirectoryMember[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -17,6 +23,10 @@ const MemberDirectory = () => {
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [totalMembers, setTotalMembers] = useState(0)
+  const [deleteTarget, setDeleteTarget] = useState<{ memberId: number; fullName: string; email: string } | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [deleteSuccess, setDeleteSuccess] = useState<string | null>(null)
 
   const debouncedSearch = useDebounce(search, 300)
 
@@ -54,6 +64,24 @@ const MemberDirectory = () => {
     setPage(1)
     fetchMembers(1, debouncedSearch)
   }, [debouncedSearch, fetchMembers])
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return
+    setIsDeleting(true)
+    setDeleteError(null)
+    try {
+      const result = await directorService.deleteMember(deleteTarget.memberId)
+      setDeleteSuccess(result.message || `${deleteTarget.fullName}'s account has been deleted`)
+      setDeleteTarget(null)
+      // Refresh the member list
+      setPage(1)
+      fetchMembers(1, debouncedSearch)
+    } catch (error: any) {
+      setDeleteError(error.response?.data?.message || 'Failed to delete member')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
 
   const handleLoadMore = () => {
     const nextPage = page + 1
@@ -98,6 +126,18 @@ const MemberDirectory = () => {
           className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-forest-500 focus:border-transparent"
         />
       </div>
+
+      {/* Alerts */}
+      {deleteError && (
+        <Alert variant="error" onClose={() => setDeleteError(null)}>
+          {deleteError}
+        </Alert>
+      )}
+      {deleteSuccess && (
+        <Alert variant="success" onClose={() => setDeleteSuccess(null)}>
+          {deleteSuccess}
+        </Alert>
+      )}
 
       {/* Members Grid */}
       {isLoading ? (
@@ -163,6 +203,19 @@ const MemberDirectory = () => {
                           Joined {formatDate(member.createdAt)}
                         </p>
                       </div>
+                      {isSuperAdmin && (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault()
+                            e.stopPropagation()
+                            setDeleteTarget({ memberId: member.memberId, fullName: member.fullName, email: member.email })
+                          }}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                          title="Delete account"
+                        >
+                          <TrashIcon className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                   </Card.Body>
                 </Card>
@@ -184,6 +237,28 @@ const MemberDirectory = () => {
           )}
         </>
       )}
+      {/* Delete Confirmation Modal */}
+      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete Member Account" size="sm">
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Are you sure you want to delete <span className="font-semibold">{deleteTarget?.fullName}</span>'s account ({deleteTarget?.email})?
+          </p>
+          <p className="text-sm text-red-600">
+            This will permanently delete their account and all their posts, comments, likes, and session data. This action cannot be undone.
+          </p>
+          {deleteError && (
+            <Alert variant="error">{deleteError}</Alert>
+          )}
+        </div>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={handleDelete} loading={isDeleting}>
+            Delete Account
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </div>
   )
 }

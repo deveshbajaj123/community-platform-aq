@@ -630,6 +630,65 @@ const demoteToMember = asyncHandler(async (req, res) => {
   return successResponse(res, { member: demoted }, 'Director demoted to member successfully');
 });
 
+/**
+ * Delete a member account (super-admin only)
+ * DELETE /api/director/super-admin/members/:memberId
+ */
+const deleteMember = asyncHandler(async (req, res) => {
+  const { memberId } = req.params;
+
+  // Prevent self-deletion
+  if (parseInt(memberId) === req.member.memberId) {
+    return errorResponse(res, 'Cannot delete your own account', 400);
+  }
+
+  // Look up target member directly (findById filters is_active, but we want to delete any member)
+  const memberResult = await pool.query(
+    'SELECT member_id, uuid, email, full_name, role, is_super_admin FROM members WHERE member_id = $1',
+    [parseInt(memberId)]
+  );
+  const targetMember = memberResult.rows[0];
+
+  if (!targetMember) {
+    return notFoundResponse(res, 'Member');
+  }
+
+  // Prevent deleting super admins
+  if (targetMember.is_super_admin) {
+    return errorResponse(res, 'Cannot delete a super admin account', 403);
+  }
+
+  // Log audit event BEFORE deletion so member details are preserved
+  const clientInfo = getClientInfo(req);
+  await logAuditEvent({
+    memberId: req.member.memberId,
+    action: AuditActions.MEMBER_DELETED,
+    entityType: 'member',
+    entityId: parseInt(memberId),
+    ...clientInfo,
+    details: {
+      deletedMemberEmail: targetMember.email,
+      deletedMemberName: targetMember.full_name,
+      deletedMemberRole: targetMember.role,
+      deletedMemberUuid: targetMember.uuid
+    }
+  });
+
+  const deleted = await Member.deleteMember(parseInt(memberId));
+
+  if (!deleted) {
+    return errorResponse(res, 'Failed to delete member', 500);
+  }
+
+  return successResponse(res, {
+    deletedMember: {
+      memberId: deleted.memberId,
+      email: deleted.email,
+      fullName: deleted.fullName
+    }
+  }, 'Member account deleted successfully');
+});
+
 module.exports = {
   getDashboardStats,
   getPendingApprovals,
@@ -651,5 +710,6 @@ module.exports = {
   // Super-admin director management
   getEligibleMembers,
   promoteToDirector,
-  demoteToMember
+  demoteToMember,
+  deleteMember
 };

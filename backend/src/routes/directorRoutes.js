@@ -44,4 +44,7 @@ router.get('/super-admin/eligible-members', requireSuperAdmin, directorControlle
 router.post('/super-admin/promote/:memberId', requireSuperAdmin, directorController.promoteToDirector);
 router.post('/super-admin/demote/:memberId', requireSuperAdmin, directorController.demoteToMember);
 
+// Member deletion (super-admin only)
+router.delete('/super-admin/members/:memberId', requireSuperAdmin, directorController.deleteMember);
+
 module.exports = router;

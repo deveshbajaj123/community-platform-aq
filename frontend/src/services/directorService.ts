@@ -240,6 +240,24 @@ export const directorService = {
       `/director/super-admin/demote/${memberId}`
     )
     return response.data
+  },
+
+  /**
+   * Delete a member account (super-admin only)
+   */
+  async deleteMember(memberId: number) {
+    const response = await api.delete<{
+      success: boolean
+      data: {
+        deletedMember: {
+          memberId: number
+          email: string
+          fullName: string
+        }
+      }
+      message: string
+    }>(`/director/super-admin/members/${memberId}`)
+    return response.data
   }
 }
 

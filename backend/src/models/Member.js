@@ -347,6 +347,40 @@ const Member = {
     );
 
     return { members: transformArray(result.rows), total };
+  },
+
+  /**
+   * Hard-delete a member and clean up all foreign key references.
+   * Runs in a transaction: SET NULL on non-cascading FKs, then DELETE (CASCADE handles the rest).
+   */
+  async deleteMember(memberId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      // SET NULL on all non-cascading foreign keys referencing this member
+      await client.query('UPDATE members SET approved_by = NULL WHERE approved_by = $1', [memberId]);
+      await client.query('UPDATE posts SET reviewed_by = NULL WHERE reviewed_by = $1', [memberId]);
+      await client.query('UPDATE director_categories SET assigned_by = NULL WHERE assigned_by = $1', [memberId]);
+      await client.query('UPDATE post_approvals SET approved_by = NULL WHERE approved_by = $1', [memberId]);
+      await client.query('UPDATE teams SET created_by = NULL WHERE created_by = $1', [memberId]);
+      await client.query('UPDATE projects SET created_by = NULL WHERE created_by = $1', [memberId]);
+      await client.query('UPDATE community_audit_logs SET member_id = NULL WHERE member_id = $1', [memberId]);
+
+      // DELETE the member — CASCADE handles posts, likes, comments, sessions, tags, team_members, etc.
+      const result = await client.query(
+        'DELETE FROM members WHERE member_id = $1 RETURNING member_id, uuid, email, full_name, role, is_super_admin',
+        [memberId]
+      );
+
+      await client.query('COMMIT');
+      return result.rows[0] ? transformKeys(result.rows[0]) : null;
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 };
 
