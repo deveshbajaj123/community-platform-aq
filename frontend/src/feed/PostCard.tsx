@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { HeartIcon, EllipsisHorizontalIcon } from '@heroicons/react/24/outline'
+import { HeartIcon, EllipsisHorizontalIcon, LinkIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { HeartIcon as HeartIconSolid } from '@heroicons/react/24/solid'
 import { Post } from '../services/api'
 import { useAuth } from '../auth/AuthContext'
@@ -39,6 +39,7 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
   const [showLikers, setShowLikers] = useState(false)
   const [likers, setLikers] = useState<Liker[]>([])
   const [isLoadingLikers, setIsLoadingLikers] = useState(false)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   const categoryInfo = getCategoryInfo(post.category)
   const isOwner = member?.uuid === post.authorUuid
@@ -92,6 +93,23 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
     } finally {
       setIsLoadingLikers(false)
     }
+  }
+
+  const handleSharePost = async () => {
+    const url = `${window.location.origin}/post/${post.uuid}`
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      // Fallback for browsers without clipboard API
+      const el = document.createElement('input')
+      el.value = url
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
   }
 
   const handleDelete = async () => {
@@ -329,6 +347,26 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
             }`}
           >
             {likeCount} {likeCount === 1 ? 'like' : 'likes'}
+          </button>
+
+          {/* Share button */}
+          <button
+            onClick={handleSharePost}
+            title="Copy link to post"
+            className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+              linkCopied
+                ? 'text-forest-600'
+                : 'text-gray-500 hover:bg-cream-200'
+            }`}
+          >
+            {linkCopied ? (
+              <>
+                <CheckIcon className="w-4 h-4" />
+                <span className="text-xs font-medium">Copied!</span>
+              </>
+            ) : (
+              <LinkIcon className="w-4 h-4" />
+            )}
           </button>
         </div>
 

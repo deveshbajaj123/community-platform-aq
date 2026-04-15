@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { CalendarIcon, AcademicCapIcon, BuildingLibraryIcon } from '@heroicons/react/24/outline'
+import { CalendarIcon, AcademicCapIcon, BuildingLibraryIcon, LinkIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../auth/AuthContext'
 import profileService, { MemberProfile } from '../services/profileService'
 import { Post } from '../services/api'
@@ -24,6 +24,7 @@ const PublicProfilePage = () => {
   const [isLoadingPosts, setIsLoadingPosts] = useState(false)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -87,6 +88,22 @@ const PublicProfilePage = () => {
     } catch (error) {
       console.error('Failed to load more posts:', error)
     }
+  }
+
+  const handleShareProfile = async () => {
+    const url = `${window.location.origin}/member/${uuid}`
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      const el = document.createElement('input')
+      el.value = url
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
   }
 
   const formatDate = (dateStr?: string) => {
@@ -209,16 +226,34 @@ const PublicProfilePage = () => {
                 </div>
               </div>
 
-              {/* Action buttons for logged-in users */}
-              {isOwnProfile && currentMember && (
-                <div className="mt-4">
+              {/* Action buttons */}
+              <div className="flex items-center gap-2 mt-4">
+                {isOwnProfile && currentMember && (
                   <Link to="/profile/edit">
                     <Button variant="secondary" size="sm">
                       Edit Profile
                     </Button>
                   </Link>
-                </div>
-              )}
+                )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleShareProfile}
+                  title="Copy profile link"
+                >
+                  {linkCopied ? (
+                    <>
+                      <CheckIcon className="w-4 h-4 mr-1.5 text-forest-600" />
+                      <span className="text-forest-600">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <LinkIcon className="w-4 h-4 mr-1.5" />
+                      Share
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </Card.Body>

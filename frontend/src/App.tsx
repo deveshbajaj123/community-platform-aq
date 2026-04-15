@@ -20,6 +20,7 @@ import ProfilePage from './profile/ProfilePage'
 import EditProfilePage from './profile/EditProfilePage'
 
 // Public Entity Pages
+import PostPage from './feed/PostPage'
 import TeamsPage from './teams/TeamsPage'
 import TeamDetailPage from './teams/TeamDetailPage'
 import SearchPage from './search/SearchPage'
@@ -41,6 +42,7 @@ function App() {
           <Route element={<PublicLayout />}>
             <Route path="/" element={<HomeRoute />} />
             <Route path="/member/:uuid" element={<PublicProfilePage />} />
+            <Route path="/post/:uuid" element={<PostPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/pending" element={<PendingApprovalPage />} />

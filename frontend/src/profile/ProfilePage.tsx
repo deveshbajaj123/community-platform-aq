@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { PencilIcon, CalendarIcon, AcademicCapIcon, BuildingLibraryIcon } from '@heroicons/react/24/outline'
+import { PencilIcon, CalendarIcon, AcademicCapIcon, BuildingLibraryIcon, LinkIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../auth/AuthContext'
 import profileService, { MemberProfile } from '../services/profileService'
 import { Post, Achievement } from '../services/api'
@@ -31,6 +31,7 @@ const ProfilePage = ({ isOwn: isOwnProp = false }: ProfilePageProps) => {
   const [isLoadingPosts, setIsLoadingPosts] = useState(false)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
+  const [linkCopied, setLinkCopied] = useState(false)
 
   // Detect if viewing own profile - either via prop or by matching UUID
   const isOwn = isOwnProp || (currentMember?.uuid === uuid)
@@ -112,6 +113,25 @@ const ProfilePage = ({ isOwn: isOwnProp = false }: ProfilePageProps) => {
 
   const handlePostDelete = (postId: number) => {
     setPosts(prev => prev.filter(p => p.postId !== postId))
+  }
+
+  const handleShareProfile = async () => {
+    // Always share the public /member/:uuid URL so the link works for everyone
+    const targetUuid = profile?.uuid
+    if (!targetUuid) return
+    const url = `${window.location.origin}/member/${targetUuid}`
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      const el = document.createElement('input')
+      el.value = url
+      document.body.appendChild(el)
+      el.select()
+      document.execCommand('copy')
+      document.body.removeChild(el)
+    }
+    setLinkCopied(true)
+    setTimeout(() => setLinkCopied(false), 2000)
   }
 
   const formatDate = (dateStr?: string) => {
@@ -203,14 +223,34 @@ const ProfilePage = ({ isOwn: isOwnProp = false }: ProfilePageProps) => {
                 </div>
               )}
 
-              {isOwn && (
-                <Link to="/profile/edit">
-                  <Button variant="secondary" size="sm">
-                    <PencilIcon className="w-4 h-4 mr-1.5" />
-                    Edit Profile
-                  </Button>
-                </Link>
-              )}
+              <div className="flex items-center gap-2">
+                {isOwn && (
+                  <Link to="/profile/edit">
+                    <Button variant="secondary" size="sm">
+                      <PencilIcon className="w-4 h-4 mr-1.5" />
+                      Edit Profile
+                    </Button>
+                  </Link>
+                )}
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleShareProfile}
+                  title="Copy profile link"
+                >
+                  {linkCopied ? (
+                    <>
+                      <CheckIcon className="w-4 h-4 mr-1.5 text-forest-600" />
+                      <span className="text-forest-600">Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <LinkIcon className="w-4 h-4 mr-1.5" />
+                      Share
+                    </>
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
         </Card.Body>
