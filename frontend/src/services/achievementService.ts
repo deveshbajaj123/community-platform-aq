@@ -25,6 +25,7 @@ export const achievementService = {
     description?: string
     achievementType: string
     achievementDate: string
+    achievementEndDate?: string | null
     proofUrl?: string
   }) {
     const response = await api.post<{ success: boolean; data: { achievement: Achievement }; message: string }>(
@@ -42,6 +43,7 @@ export const achievementService = {
     description?: string
     achievementType?: string
     achievementDate?: string
+    achievementEndDate?: string | null
     proofUrl?: string
   }) {
     const response = await api.put<{ success: boolean; data: { achievement: Achievement }; message: string }>(

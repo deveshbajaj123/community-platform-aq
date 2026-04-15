@@ -1,18 +1,18 @@
 const { pool } = require('../config/database');
 const { transformKeys, transformArray } = require('../utils/caseTransform');
 
-const VALID_TYPES = ['leadership', 'academic', 'competition', 'personal_project'];
+const VALID_TYPES = ['leadership', 'academic', 'competition', 'personal_project', 'other'];
 
 const Achievement = {
   /**
    * Create achievement
    */
-  async create({ memberId, title, description, achievementType, achievementDate, proofUrl }) {
+  async create({ memberId, title, description, achievementType, achievementDate, achievementEndDate, proofUrl }) {
     const result = await pool.query(
-      `INSERT INTO external_achievements (member_id, title, description, achievement_type, achievement_date, proof_url)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO external_achievements (member_id, title, description, achievement_type, achievement_date, achievement_end_date, proof_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [memberId, title, description, achievementType, achievementDate, proofUrl]
+      [memberId, title, description, achievementType, achievementDate, achievementEndDate || null, proofUrl]
     );
     return transformKeys(result.rows[0]);
   },
@@ -42,17 +42,18 @@ const Achievement = {
   /**
    * Update achievement
    */
-  async update(achievementId, { title, description, achievementType, achievementDate, proofUrl }) {
+  async update(achievementId, { title, description, achievementType, achievementDate, achievementEndDate, proofUrl }) {
     const result = await pool.query(
       `UPDATE external_achievements
        SET title = COALESCE($1, title),
            description = COALESCE($2, description),
            achievement_type = COALESCE($3, achievement_type),
            achievement_date = COALESCE($4, achievement_date),
-           proof_url = COALESCE($5, proof_url)
-       WHERE achievement_id = $6
+           achievement_end_date = $5,
+           proof_url = COALESCE($6, proof_url)
+       WHERE achievement_id = $7
        RETURNING *`,
-      [title, description, achievementType, achievementDate, proofUrl, achievementId]
+      [title, description, achievementType, achievementDate, achievementEndDate ?? null, proofUrl, achievementId]
     );
     return result.rows[0] ? transformKeys(result.rows[0]) : null;
   },

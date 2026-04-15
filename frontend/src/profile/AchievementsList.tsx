@@ -17,11 +17,19 @@ interface AchievementsListProps {
   onRefresh: () => void
 }
 
-const ACHIEVEMENT_TYPE_INFO = {
+const ACHIEVEMENT_TYPE_INFO: Record<string, { emoji: string; label: string; color: string }> = {
   leadership: { emoji: '👑', label: 'Leadership', color: 'orange' },
   academic: { emoji: '📚', label: 'Academic', color: 'forest' },
   competition: { emoji: '🏆', label: 'Competition', color: 'success' },
   personal_project: { emoji: '💡', label: 'Personal Project', color: 'info' },
+  other: { emoji: '🌟', label: 'Other', color: 'default' },
+}
+
+const formatDateRange = (startDate: string, endDate?: string | null): string => {
+  const fmt = (d: string) =>
+    new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+  const end = endDate ? fmt(endDate) : 'Present'
+  return `${fmt(startDate)} – ${end}`
 }
 
 const AchievementsList = ({ achievements, isLoading, isOwn, profileName, onRefresh }: AchievementsListProps) => {
@@ -97,7 +105,7 @@ const AchievementsList = ({ achievements, isLoading, isOwn, profileName, onRefre
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {achievements.map(achievement => {
-          const typeInfo = ACHIEVEMENT_TYPE_INFO[achievement.achievementType]
+          const typeInfo = ACHIEVEMENT_TYPE_INFO[achievement.achievementType] ?? ACHIEVEMENT_TYPE_INFO.other
 
           return (
             <Card key={achievement.achievementId} hover>
@@ -146,13 +154,9 @@ const AchievementsList = ({ achievements, isLoading, isOwn, profileName, onRefre
                   </p>
                 )}
 
-                {/* Date */}
+                {/* Date range */}
                 <p className="text-xs text-gray-500">
-                  {new Date(achievement.achievementDate).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric'
-                  })}
+                  {formatDateRange(achievement.achievementDate, achievement.achievementEndDate)}
                 </p>
               </Card.Body>
             </Card>

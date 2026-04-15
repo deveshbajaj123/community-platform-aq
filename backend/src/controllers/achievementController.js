@@ -4,14 +4,14 @@ const { successResponse, errorResponse, notFoundResponse, forbiddenResponse, pag
 const { asyncHandler } = require('../utils/errorHandler');
 const { logAuditEvent, getClientInfo, AuditActions } = require('../utils/auditLogger');
 
-const VALID_TYPES = ['leadership', 'academic', 'competition', 'personal_project'];
+const VALID_TYPES = ['leadership', 'academic', 'competition', 'personal_project', 'other'];
 
 /**
  * Create achievement
  * POST /api/achievements
  */
 const createAchievement = asyncHandler(async (req, res) => {
-  const { title, description, achievementType, achievementDate, proofUrl } = req.body;
+  const { title, description, achievementType, achievementDate, achievementEndDate, proofUrl } = req.body;
 
   // Validation
   if (!title || !achievementType || !achievementDate) {
@@ -22,10 +22,18 @@ const createAchievement = asyncHandler(async (req, res) => {
     return errorResponse(res, `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}`, 400);
   }
 
-  // Check date not in future
-  const selectedDate = new Date(achievementDate);
-  if (selectedDate > new Date()) {
-    return errorResponse(res, 'Achievement date cannot be in the future', 400);
+  // Check start date not in future
+  const startDate = new Date(achievementDate);
+  if (startDate > new Date()) {
+    return errorResponse(res, 'Start date cannot be in the future', 400);
+  }
+
+  // Check end date is after start date (if provided)
+  if (achievementEndDate) {
+    const endDate = new Date(achievementEndDate);
+    if (endDate < startDate) {
+      return errorResponse(res, 'End date must be after start date', 400);
+    }
   }
 
   const achievement = await Achievement.create({
@@ -34,6 +42,7 @@ const createAchievement = asyncHandler(async (req, res) => {
     description,
     achievementType,
     achievementDate,
+    achievementEndDate: achievementEndDate || null,
     proofUrl
   });
 
@@ -89,7 +98,7 @@ const getMemberAchievements = asyncHandler(async (req, res) => {
  * PUT /api/achievements/:uuid
  */
 const updateAchievement = asyncHandler(async (req, res) => {
-  const { title, description, achievementType, achievementDate, proofUrl } = req.body;
+  const { title, description, achievementType, achievementDate, achievementEndDate, proofUrl } = req.body;
 
   const achievement = await Achievement.findByUuid(req.params.uuid);
   if (!achievement) {
@@ -106,11 +115,17 @@ const updateAchievement = asyncHandler(async (req, res) => {
     return errorResponse(res, `Invalid type. Must be one of: ${VALID_TYPES.join(', ')}`, 400);
   }
 
-  // Validate date if provided
+  // Validate dates if provided
   if (achievementDate) {
-    const selectedDate = new Date(achievementDate);
-    if (selectedDate > new Date()) {
-      return errorResponse(res, 'Achievement date cannot be in the future', 400);
+    const startDate = new Date(achievementDate);
+    if (startDate > new Date()) {
+      return errorResponse(res, 'Start date cannot be in the future', 400);
+    }
+    if (achievementEndDate) {
+      const endDate = new Date(achievementEndDate);
+      if (endDate < startDate) {
+        return errorResponse(res, 'End date must be after start date', 400);
+      }
     }
   }
 
@@ -119,6 +134,7 @@ const updateAchievement = asyncHandler(async (req, res) => {
     description,
     achievementType,
     achievementDate,
+    achievementEndDate: achievementEndDate !== undefined ? (achievementEndDate || null) : achievement.achievementEndDate,
     proofUrl
   });
 

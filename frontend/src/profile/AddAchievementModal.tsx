@@ -19,6 +19,7 @@ const ACHIEVEMENT_TYPES = [
   { value: 'academic', label: '📚 Academic' },
   { value: 'competition', label: '🏆 Competition' },
   { value: 'personal_project', label: '💡 Personal Project' },
+  { value: 'other', label: '🌟 Other' },
 ]
 
 const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchievementModalProps) => {
@@ -28,7 +29,9 @@ const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchie
     title: '',
     description: '',
     achievementType: '',
-    achievementDate: '',
+    startDate: '',
+    endDate: '',
+    isPresent: false,
     proofImage: null as File | null,
   })
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -40,7 +43,11 @@ const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchie
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
-  const handleProofImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePresentToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({ ...prev, isPresent: e.target.checked, endDate: '' }))
+  }
+
+  const handleSupportingImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
@@ -58,7 +65,7 @@ const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchie
     setFormData(prev => ({ ...prev, proofImage: file }))
   }
 
-  const removeProofImage = () => {
+  const removeSupportingImage = () => {
     setFormData(prev => ({ ...prev, proofImage: null }))
     setImagePreview(null)
     if (fileInputRef.current) {
@@ -67,7 +74,6 @@ const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchie
   }
 
   const handleSubmit = async () => {
-    // Validation
     if (!formData.title.trim()) {
       setError('Title is required')
       return
@@ -76,8 +82,12 @@ const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchie
       setError('Please select an achievement type')
       return
     }
-    if (!formData.achievementDate) {
-      setError('Date is required')
+    if (!formData.startDate) {
+      setError('Start date is required')
+      return
+    }
+    if (!formData.isPresent && !formData.endDate) {
+      setError('Please set an end date or mark as ongoing')
       return
     }
 
@@ -87,22 +97,21 @@ const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchie
     try {
       let proofUrl: string | undefined = undefined
 
-      // Upload proof image if present
       if (formData.proofImage) {
         const uploadResult = await feedService.uploadImages([formData.proofImage])
         if (uploadResult.success) {
           proofUrl = uploadResult.data.images[0].url
         } else {
-          throw new Error('Failed to upload proof image')
+          throw new Error('Failed to upload supporting image')
         }
       }
 
-      // Create achievement
       const result = await achievementService.createAchievement({
         title: formData.title.trim(),
         description: formData.description.trim(),
         achievementType: formData.achievementType,
-        achievementDate: formData.achievementDate,
+        achievementDate: formData.startDate,
+        achievementEndDate: formData.isPresent ? null : formData.endDate,
         proofUrl,
       })
 
@@ -124,7 +133,9 @@ const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchie
       title: '',
       description: '',
       achievementType: '',
-      achievementDate: '',
+      startDate: '',
+      endDate: '',
+      isPresent: false,
       proofImage: null,
     })
     setImagePreview(null)
@@ -133,7 +144,7 @@ const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchie
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={handleClose} title="Add Achievement" size="lg">
+    <Modal isOpen={isOpen} onClose={handleClose} title="Add Achievement" size="lg" fullScreenMobile>
       <div className="space-y-4">
         {error && (
           <Alert variant="error" onClose={() => setError(null)}>
@@ -159,47 +170,80 @@ const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchie
           rows={3}
         />
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Type <span className="text-red-500">*</span>
-            </label>
-            <select
-              name="achievementType"
-              value={formData.achievementType}
-              onChange={handleChange}
-              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-forest-500 focus:border-transparent"
-              required
-            >
-              <option value="">Select type</option>
-              {ACHIEVEMENT_TYPES.map(t => (
-                <option key={t.value} value={t.value}>{t.label}</option>
-              ))}
-            </select>
-          </div>
-
-          <Input
-            label="Date"
-            name="achievementDate"
-            type="date"
-            value={formData.achievementDate}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        {/* Proof Image Upload */}
+        {/* Type */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1.5">
-            Proof Image (Optional)
+            Type <span className="text-red-500">*</span>
+          </label>
+          <select
+            name="achievementType"
+            value={formData.achievementType}
+            onChange={handleChange}
+            className="w-full px-4 py-2.5 rounded-lg border border-gray-300 focus:ring-2 focus:ring-forest-500 focus:border-transparent"
+            required
+          >
+            <option value="">Select type</option>
+            {ACHIEVEMENT_TYPES.map(t => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Date range */}
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Start Date"
+              name="startDate"
+              type="date"
+              value={formData.startDate}
+              onChange={handleChange}
+              required
+            />
+
+            {formData.isPresent ? (
+              <div className="flex flex-col justify-end pb-0.5">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">End Date</label>
+                <div className="w-full px-4 py-2.5 rounded-lg border border-gray-300 bg-gray-50 text-gray-500 text-sm">
+                  Present
+                </div>
+              </div>
+            ) : (
+              <Input
+                label="End Date"
+                name="endDate"
+                type="date"
+                value={formData.endDate}
+                onChange={handleChange}
+                min={formData.startDate || undefined}
+                required={!formData.isPresent}
+              />
+            )}
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer w-fit">
+            <input
+              type="checkbox"
+              checked={formData.isPresent}
+              onChange={handlePresentToggle}
+              className="w-4 h-4 rounded border-gray-300 text-forest-600 focus:ring-forest-500"
+            />
+            <span className="text-sm text-gray-700">Currently ongoing (Present)</span>
+          </label>
+        </div>
+
+        {/* Supporting Image */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            Supporting Image <span className="text-gray-400 font-normal">(Optional)</span>
           </label>
 
           {imagePreview && (
             <div className="relative mb-3">
-              <img src={imagePreview} alt="Proof" className="w-full h-40 object-cover rounded-lg" />
+              <img src={imagePreview} alt="Supporting" className="w-full h-40 object-cover rounded-lg" />
               <button
                 type="button"
-                onClick={removeProofImage}
+                onClick={removeSupportingImage}
                 className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-full text-white hover:bg-black/70"
               >
                 <XMarkIcon className="w-4 h-4" />
@@ -212,14 +256,14 @@ const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchie
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={handleProofImageSelect}
+            onChange={handleSupportingImageSelect}
           />
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
             className="w-full px-4 py-2.5 rounded-lg border-2 border-dashed border-gray-300 hover:border-forest-500 text-gray-600 hover:text-forest-600 transition-colors"
           >
-            {imagePreview ? 'Change Image' : 'Upload Proof Image'}
+            {imagePreview ? 'Change Image' : 'Upload Supporting Image'}
           </button>
         </div>
       </div>
@@ -231,7 +275,12 @@ const AddAchievementModal = ({ isOpen, onClose, onAchievementCreated }: AddAchie
         <Button
           onClick={handleSubmit}
           loading={isSubmitting}
-          disabled={!formData.title || !formData.achievementType || !formData.achievementDate}
+          disabled={
+            !formData.title ||
+            !formData.achievementType ||
+            !formData.startDate ||
+            (!formData.isPresent && !formData.endDate)
+          }
         >
           Save Achievement
         </Button>

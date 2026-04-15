@@ -132,8 +132,9 @@ export interface Achievement {
   memberId: number
   title: string
   description?: string
-  achievementType: 'leadership' | 'academic' | 'competition' | 'personal_project'
+  achievementType: 'leadership' | 'academic' | 'competition' | 'personal_project' | 'other'
   achievementDate: string
+  achievementEndDate?: string | null
   proofUrl?: string
   createdAt: string
   updatedAt: string
