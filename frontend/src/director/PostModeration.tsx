@@ -115,13 +115,18 @@ const PostModeration = () => {
   }
 
   const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-      hour: 'numeric',
-      minute: '2-digit'
-    })
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins}m ago`
+    if (diffHours < 24) return `${diffHours}h ago`
+    if (diffDays < 7) return `${diffDays}d ago`
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
   }
 
   if (isLoading) {
@@ -179,54 +184,28 @@ const PostModeration = () => {
             return (
               <Card key={post.postId} className="animate-fade-in">
                 <Card.Body>
-                  {/* Post Header */}
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <Link to={`/profile/${post.authorUuid}`}>
-                        <Avatar
-                          src={post.authorAvatar}
-                          name={post.authorName}
-                          size="md"
-                        />
+                  {/* Post Header — author info takes full width */}
+                  <div className="flex items-start gap-3 mb-3">
+                    <Link to={`/profile/${post.authorUuid}`} className="flex-shrink-0">
+                      <Avatar
+                        src={post.authorAvatar}
+                        name={post.authorName}
+                        size="md"
+                      />
+                    </Link>
+                    <div className="min-w-0 flex-1">
+                      <Link
+                        to={`/profile/${post.authorUuid}`}
+                        className="font-medium text-gray-900 hover:text-forest-600 block truncate"
+                      >
+                        {post.authorName}
                       </Link>
-                      <div>
-                        <Link
-                          to={`/profile/${post.authorUuid}`}
-                          className="font-medium text-gray-900 hover:text-forest-600"
-                        >
-                          {post.authorName}
-                        </Link>
-                        <div className="flex items-center gap-2 text-sm text-gray-500">
-                          <span>{formatDate(post.createdAt)}</span>
-                          <span>·</span>
-                          <Badge variant="default" size="sm">
-                            {categoryInfo.emoji} {categoryInfo.label}
-                          </Badge>
-                        </div>
+                      <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-0.5">
+                        <span className="text-sm text-gray-500">{formatDate(post.createdAt)}</span>
+                        <Badge variant="default" size="sm">
+                          {categoryInfo.emoji} {categoryInfo.label}
+                        </Badge>
                       </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex gap-2">
-                      <Button
-                        onClick={() => handleApprove(post)}
-                        loading={actionLoading === post.postId}
-                        disabled={actionLoading !== null}
-                        className="bg-forest-500 hover:bg-forest-600 text-white"
-                        size="sm"
-                      >
-                        <CheckIcon className="w-4 h-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        onClick={() => openRejectModal(post)}
-                        disabled={actionLoading !== null}
-                        variant="danger"
-                        size="sm"
-                      >
-                        <XMarkIcon className="w-4 h-4 mr-1" />
-                        Reject
-                      </Button>
                     </div>
                   </div>
 
@@ -252,7 +231,7 @@ const PostModeration = () => {
 
                   {/* Images */}
                   {post.images && post.images.length > 0 && (
-                    <div className={`grid gap-2 ${post.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                    <div className={`grid gap-2 mb-4 ${post.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
                       {post.images.map((img, i) => (
                         <img
                           key={i}
@@ -270,7 +249,7 @@ const PostModeration = () => {
                       href={post.linkUrl}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block mt-4 p-3 border border-cream-300 rounded-lg hover:bg-cream-50 transition-colors"
+                      className="block mb-4 p-3 border border-cream-300 rounded-lg hover:bg-cream-50 transition-colors"
                     >
                       {post.linkImage && (
                         <img
@@ -287,6 +266,30 @@ const PostModeration = () => {
                       <p className="text-xs text-gray-500 truncate">{post.linkUrl}</p>
                     </a>
                   )}
+
+                  {/* Action buttons — full-width on mobile, auto-width on sm+ */}
+                  <div className="flex gap-2 pt-3 border-t border-cream-200">
+                    <Button
+                      onClick={() => handleApprove(post)}
+                      loading={actionLoading === post.postId}
+                      disabled={actionLoading !== null}
+                      className="flex-1 sm:flex-none bg-forest-500 hover:bg-forest-600 text-white justify-center"
+                      size="sm"
+                    >
+                      <CheckIcon className="w-4 h-4 mr-1.5" />
+                      Approve
+                    </Button>
+                    <Button
+                      onClick={() => openRejectModal(post)}
+                      disabled={actionLoading !== null}
+                      variant="danger"
+                      size="sm"
+                      className="flex-1 sm:flex-none justify-center"
+                    >
+                      <XMarkIcon className="w-4 h-4 mr-1.5" />
+                      Reject
+                    </Button>
+                  </div>
                 </Card.Body>
               </Card>
             )
@@ -313,6 +316,7 @@ const PostModeration = () => {
         onClose={closeRejectModal}
         title="Reject Post"
         size="md"
+        fullScreenMobile
       >
         <div className="space-y-4">
           <p className="text-gray-600">
