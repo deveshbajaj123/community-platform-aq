@@ -14,6 +14,9 @@ router.get('/', optionalAuth, postController.getFeed);
 // Get single post (PUBLIC - optionalAuth provides context for unpublished posts if author/director)
 router.get('/:uuid', optionalAuth, postController.getPost);
 
+// Get list of members who liked a post (PUBLIC - anyone can view)
+router.get('/:uuid/likers', postController.getPostLikers);
+
 // ============================================
 // PROTECTED ROUTES (requires authentication + active status)
 // ============================================

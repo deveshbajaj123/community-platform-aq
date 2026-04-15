@@ -44,6 +44,22 @@ export const feedService = {
   },
 
   /**
+   * Get list of members who liked a post (PUBLIC)
+   */
+  async getLikers(uuid: string, params: { page?: number; limit?: number } = {}) {
+    const response = await api.get<PaginatedResponse<{
+      memberId: number
+      uuid: string
+      fullName: string
+      avatarUrl?: string
+      classGrade?: string
+      role: 'member' | 'director'
+      likedAt: string
+    }>>(`/feed/${uuid}/likers`, { params })
+    return response.data
+  },
+
+  /**
    * Delete post
    */
   async deletePost(uuid: string) {

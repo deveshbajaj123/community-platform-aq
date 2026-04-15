@@ -8,8 +8,20 @@ import feedService from '../services/feedService'
 import Avatar from '../components/Avatar'
 import Badge from '../components/Badge'
 import Card from '../components/Card'
+import Modal from '../components/Modal'
+import Spinner from '../components/Spinner'
 import { getCategoryInfo } from './CategoryFilter'
 import TaggedMembersDisplay from './TaggedMembersDisplay'
+
+interface Liker {
+  memberId: number
+  uuid: string
+  fullName: string
+  avatarUrl?: string
+  classGrade?: string
+  role: 'member' | 'director'
+  likedAt: string
+}
 
 interface PostCardProps {
   post: Post
@@ -24,6 +36,9 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
   const [likeCount, setLikeCount] = useState(post.likeCount)
   const [isLiking, setIsLiking] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
+  const [showLikers, setShowLikers] = useState(false)
+  const [likers, setLikers] = useState<Liker[]>([])
+  const [isLoadingLikers, setIsLoadingLikers] = useState(false)
 
   const categoryInfo = getCategoryInfo(post.category)
   const isOwner = member?.uuid === post.authorUuid
@@ -60,6 +75,22 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
       setLikeCount(previousCount)
     } finally {
       setIsLiking(false)
+    }
+  }
+
+  const openLikers = async () => {
+    if (likeCount === 0) return
+    setShowLikers(true)
+    setIsLoadingLikers(true)
+    try {
+      const result = await feedService.getLikers(post.uuid, { limit: 100 })
+      if (result.success) {
+        setLikers(result.data)
+      }
+    } catch (error) {
+      console.error('Failed to load likers:', error)
+    } finally {
+      setIsLoadingLikers(false)
     }
   }
 
@@ -275,7 +306,8 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
           <button
             onClick={handleLike}
             disabled={isLiking}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-colors ${
+            aria-label={isLiked ? 'Unlike' : 'Like'}
+            className={`flex items-center px-3 py-1.5 rounded-lg transition-colors ${
               isLiked
                 ? 'text-red-500 hover:bg-red-50'
                 : 'text-gray-500 hover:bg-cream-200'
@@ -286,7 +318,17 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
             ) : (
               <HeartIcon className="w-5 h-5" />
             )}
-            <span className="text-sm font-medium">{likeCount}</span>
+          </button>
+          <button
+            onClick={openLikers}
+            disabled={likeCount === 0}
+            className={`text-sm font-medium px-1 py-1.5 rounded transition-colors ${
+              likeCount === 0
+                ? 'text-gray-400 cursor-default'
+                : 'text-gray-600 hover:text-forest-600 hover:underline cursor-pointer'
+            }`}
+          >
+            {likeCount} {likeCount === 1 ? 'like' : 'likes'}
           </button>
         </div>
 
@@ -295,6 +337,42 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
           {formatDate(post.createdAt)}
         </div>
       </Card.Body>
+
+      {/* Likers Modal */}
+      <Modal isOpen={showLikers} onClose={() => setShowLikers(false)} title={`${likeCount} ${likeCount === 1 ? 'Like' : 'Likes'}`} size="sm">
+        {isLoadingLikers ? (
+          <div className="flex justify-center py-8">
+            <Spinner size="lg" />
+          </div>
+        ) : likers.length === 0 ? (
+          <p className="text-center text-gray-500 py-8">No likes yet</p>
+        ) : (
+          <ul className="divide-y divide-cream-200">
+            {likers.map(liker => (
+              <li key={liker.memberId} className="py-2.5">
+                <Link
+                  to={getProfileLink(liker.uuid)}
+                  onClick={() => setShowLikers(false)}
+                  className="flex items-center gap-3 hover:bg-cream-50 -mx-2 px-2 py-1.5 rounded-lg transition-colors"
+                >
+                  <Avatar src={liker.avatarUrl} name={liker.fullName} size="md" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-gray-900 truncate">{liker.fullName}</span>
+                      {liker.role === 'director' && (
+                        <Badge variant="forest" size="sm">Director</Badge>
+                      )}
+                    </div>
+                    {liker.classGrade && (
+                      <p className="text-xs text-gray-500 truncate">{liker.classGrade}</p>
+                    )}
+                  </div>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
     </Card>
   )
 }

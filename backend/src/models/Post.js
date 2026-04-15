@@ -390,6 +390,31 @@ const Post = {
   },
 
   /**
+   * Get list of members who liked a post
+   */
+  async getLikers(postId, { page = 1, limit = 50 } = {}) {
+    const offset = (page - 1) * limit;
+
+    const countResult = await pool.query(
+      'SELECT COUNT(*) FROM likes WHERE post_id = $1',
+      [postId]
+    );
+    const total = parseInt(countResult.rows[0].count);
+
+    const result = await pool.query(
+      `SELECT m.member_id, m.uuid, m.full_name, m.avatar_url, m.class_grade, m.role, l.created_at as liked_at
+       FROM likes l
+       JOIN members m ON l.member_id = m.member_id
+       WHERE l.post_id = $1 AND m.is_active = TRUE AND m.status = 'active'
+       ORDER BY l.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [postId, limit, offset]
+    );
+
+    return { likers: transformArray(result.rows), total };
+  },
+
+  /**
    * Toggle like on post
    */
   async toggleLike(postId, memberId) {

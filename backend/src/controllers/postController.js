@@ -243,6 +243,25 @@ const toggleLike = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get list of members who liked a post (PUBLIC)
+ * GET /api/feed/:uuid/likers
+ */
+const getPostLikers = asyncHandler(async (req, res) => {
+  const post = await Post.findByUuid(req.params.uuid);
+
+  if (!post || post.status !== 'published') {
+    return notFoundResponse(res, 'Post');
+  }
+
+  const page = parseInt(req.query.page) || 1;
+  const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+
+  const { likers, total } = await Post.getLikers(post.postId, { page, limit });
+
+  return paginatedResponse(res, likers, { page, limit, total });
+});
+
+/**
  * Delete own post
  * DELETE /api/feed/:uuid
  */
@@ -293,6 +312,7 @@ module.exports = {
   getPost,
   createPost,
   toggleLike,
+  getPostLikers,
   deletePost,
   searchMembers
 };
