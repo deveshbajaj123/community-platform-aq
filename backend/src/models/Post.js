@@ -156,15 +156,14 @@ const Post = {
   },
 
   /**
-   * Get pending posts for moderation (excludes team posts - those go to team directors)
+   * Get pending posts for moderation (includes all pending posts, regular and team-based)
    */
   async getPendingReviews({ page = 1, limit = 20 }) {
     const offset = (page - 1) * limit;
 
     const countResult = await pool.query(
       `SELECT COUNT(*) FROM posts
-       WHERE status = 'pending_review'
-       AND team_id IS NULL`
+       WHERE status = 'pending_review'`
     );
     const total = parseInt(countResult.rows[0].count);
 
@@ -175,7 +174,6 @@ const Post = {
        FROM posts p
        JOIN members m ON p.author_id = m.member_id
        WHERE p.status = 'pending_review'
-       AND p.team_id IS NULL
        ORDER BY p.created_at ASC
        LIMIT $1 OFFSET $2`,
       [limit, offset]
