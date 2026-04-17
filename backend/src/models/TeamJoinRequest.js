@@ -1,4 +1,5 @@
 const { pool } = require('../config/database');
+const { transformKeys, transformArray } = require('../utils/caseTransform');
 
 class TeamJoinRequest {
   /**
@@ -11,7 +12,7 @@ class TeamJoinRequest {
        RETURNING request_id, uuid, team_id, member_id, status, message, created_at`,
       [teamId, memberId, message || null]
     );
-    return result.rows[0];
+    return result.rows[0] ? transformKeys(result.rows[0]) : null;
   }
 
   /**
@@ -27,7 +28,7 @@ class TeamJoinRequest {
        WHERE r.uuid = $1`,
       [uuid]
     );
-    return result.rows[0] || null;
+    return result.rows[0] ? transformKeys(result.rows[0]) : null;
   }
 
   /**
@@ -43,7 +44,7 @@ class TeamJoinRequest {
        ORDER BY r.created_at ASC`,
       [teamId]
     );
-    return result.rows;
+    return transformArray(result.rows);
   }
 
   /**
@@ -56,7 +57,7 @@ class TeamJoinRequest {
        WHERE member_id = $1 AND team_id = $2 AND status = 'pending'`,
       [memberId, teamId]
     );
-    return result.rows[0] || null;
+    return result.rows[0] ? transformKeys(result.rows[0]) : null;
   }
 
   /**
@@ -81,7 +82,7 @@ class TeamJoinRequest {
        RETURNING request_id, uuid, team_id, member_id, status, reviewed_by, reviewed_at`,
       [requestId, reviewedBy]
     );
-    return result.rows[0] || null;
+    return result.rows[0] ? transformKeys(result.rows[0]) : null;
   }
 
   /**
@@ -95,7 +96,7 @@ class TeamJoinRequest {
        RETURNING request_id, uuid, team_id, member_id, status, reviewed_by, reviewed_at`,
       [requestId, reviewedBy]
     );
-    return result.rows[0] || null;
+    return result.rows[0] ? transformKeys(result.rows[0]) : null;
   }
 
   /**
@@ -109,7 +110,7 @@ class TeamJoinRequest {
        RETURNING request_id, uuid, team_id, member_id, status`,
       [requestId]
     );
-    return result.rows[0] || null;
+    return result.rows[0] ? transformKeys(result.rows[0]) : null;
   }
 }
 
