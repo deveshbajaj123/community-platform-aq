@@ -42,6 +42,7 @@ const Avatar = ({ src, name, size = 'md', className = '' }: AvatarProps) => {
         src={src}
         alt={safeName}
         className={`${sizes[size]} rounded-full object-cover ${className}`}
+        referrerPolicy="no-referrer"
       />
     )
   }
