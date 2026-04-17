@@ -7,30 +7,62 @@ const { asyncHandler } = require('../utils/errorHandler');
 const { logAuditEvent, getClientInfo, AuditActions } = require('../utils/auditLogger');
 
 /**
+ * Helper: check if a director can manage member approvals.
+ * Only super admins and Operations-category directors have this authority.
+ */
+async function canManageApprovals(member) {
+  if (member.isSuperAdmin) return true;
+  return await DirectorCategory.isAssigned(member.memberId, 'operations');
+}
+
+/**
  * Get dashboard stats
  * GET /api/director/dashboard
  */
 const getDashboardStats = asyncHandler(async (req, res) => {
-  const [pendingMembers, pendingPosts, totalMembers, totalPosts] = await Promise.all([
-    pool.query(`SELECT COUNT(*) FROM members WHERE status = 'pending_approval' AND role = 'member'`),
+  const hasApprovalAuth = await canManageApprovals(req.member);
+
+  const queries = [
     pool.query(`SELECT COUNT(*) FROM posts WHERE status = 'pending_review'`),
     pool.query(`SELECT COUNT(*) FROM members WHERE status = 'active' AND is_active = TRUE`),
     pool.query(`SELECT COUNT(*) FROM posts WHERE status = 'published'`)
-  ]);
+  ];
 
-  return successResponse(res, {
-    pendingMemberApprovals: parseInt(pendingMembers.rows[0].count),
-    pendingPostReviews: parseInt(pendingPosts.rows[0].count),
-    totalActiveMembers: parseInt(totalMembers.rows[0].count),
-    totalPublishedPosts: parseInt(totalPosts.rows[0].count)
-  });
+  if (hasApprovalAuth) {
+    queries.unshift(pool.query(`SELECT COUNT(*) FROM members WHERE status = 'pending_approval' AND role = 'member'`));
+  }
+
+  const results = await Promise.all(queries);
+
+  if (hasApprovalAuth) {
+    const [pendingMembers, pendingPosts, totalMembers, totalPosts] = results;
+    return successResponse(res, {
+      pendingMemberApprovals: parseInt(pendingMembers.rows[0].count),
+      pendingPostReviews: parseInt(pendingPosts.rows[0].count),
+      totalActiveMembers: parseInt(totalMembers.rows[0].count),
+      totalPublishedPosts: parseInt(totalPosts.rows[0].count)
+    });
+  } else {
+    const [pendingPosts, totalMembers, totalPosts] = results;
+    return successResponse(res, {
+      pendingMemberApprovals: 0,
+      pendingPostReviews: parseInt(pendingPosts.rows[0].count),
+      totalActiveMembers: parseInt(totalMembers.rows[0].count),
+      totalPublishedPosts: parseInt(totalPosts.rows[0].count)
+    });
+  }
 });
 
 /**
  * Get pending member approvals
  * GET /api/director/approvals
+ * Restricted to Operations directors and super admins
  */
 const getPendingApprovals = asyncHandler(async (req, res) => {
+  if (!await canManageApprovals(req.member)) {
+    return errorResponse(res, 'Only Operations directors can review member applications', 403);
+  }
+
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
 
@@ -42,8 +74,13 @@ const getPendingApprovals = asyncHandler(async (req, res) => {
 /**
  * Approve a member
  * POST /api/director/approvals/:memberId/approve
+ * Restricted to Operations directors and super admins
  */
 const approveMember = asyncHandler(async (req, res) => {
+  if (!await canManageApprovals(req.member)) {
+    return errorResponse(res, 'Only Operations directors can approve member applications', 403);
+  }
+
   const { memberId } = req.params;
 
   const member = await Member.approve(memberId, req.member.memberId);
@@ -70,8 +107,13 @@ const approveMember = asyncHandler(async (req, res) => {
 /**
  * Reject a member
  * POST /api/director/approvals/:memberId/reject
+ * Restricted to Operations directors and super admins
  */
 const rejectMember = asyncHandler(async (req, res) => {
+  if (!await canManageApprovals(req.member)) {
+    return errorResponse(res, 'Only Operations directors can reject member applications', 403);
+  }
+
   const { memberId } = req.params;
   const { rejectionNote } = req.body || {};
 
@@ -108,16 +150,19 @@ const rejectMember = asyncHandler(async (req, res) => {
 const getPendingPosts = asyncHandler(async (req, res) => {
   const page = parseInt(req.query.page) || 1;
   const limit = parseInt(req.query.limit) || 20;
-  const mode = req.query.mode || 'assigned'; // 'assigned' or 'all'
 
   // Get director's assigned categories
   const directorCategories = await DirectorCategory.getByMember(req.member.memberId);
 
-  // If director has no assigned categories, show all pending posts (legacy behavior)
-  // Otherwise, show only posts in their assigned categories
-  if (directorCategories.length === 0 || mode === 'all') {
+  // Super admins can see all pending posts
+  if (req.member.isSuperAdmin) {
     const { posts, total } = await Post.getPendingReviews({ page, limit });
     return paginatedResponse(res, posts, { page, limit, total });
+  }
+
+  // Non-super directors with no categories have no power
+  if (directorCategories.length === 0) {
+    return paginatedResponse(res, [], { page, limit, total: 0 });
   }
 
   // Get posts that this director can approve
@@ -166,9 +211,11 @@ const approvePost = asyncHandler(async (req, res) => {
   if (isMultiCategory && category) {
     // Category-specific approval for multi-category post
     // Verify director is assigned to this category
-    const isAssigned = await DirectorCategory.isAssigned(req.member.memberId, category);
-    if (!isAssigned) {
-      return errorResponse(res, 'You are not assigned to approve this category', 403);
+    if (!req.member.isSuperAdmin) {
+      const isAssigned = await DirectorCategory.isAssigned(req.member.memberId, category);
+      if (!isAssigned) {
+        return errorResponse(res, 'You are not assigned to approve this category', 403);
+      }
     }
 
     // Add approval for this category
@@ -214,18 +261,23 @@ const approvePost = asyncHandler(async (req, res) => {
     // Simple approval (single category post or approve all)
     console.log(`[approvePost] Taking simple approval path for post ${postId}`);
 
-    // For single category posts, verify director is assigned (if they have any assignments)
-    let directorCategories;
-    try {
-      directorCategories = await DirectorCategory.getByMember(req.member.memberId);
-    } catch (err) {
-      console.error(`[approvePost] Error getting director categories:`, err);
-      throw err;
-    }
+    // Verify director is assigned (if they are not a super admin)
+    if (!req.member.isSuperAdmin) {
+      let directorCategories;
+      try {
+        directorCategories = await DirectorCategory.getByMember(req.member.memberId);
+      } catch (err) {
+        console.error(`[approvePost] Error getting director categories:`, err);
+        throw err;
+      }
 
-    console.log(`[approvePost] Director has ${directorCategories.length} category assignments`);
+      console.log(`[approvePost] Director has ${directorCategories.length} category assignments`);
 
-    if (directorCategories.length > 0) {
+      if (directorCategories.length === 0) {
+        console.log(`[approvePost] Non-super director has no categories assigned, returning 403`);
+        return errorResponse(res, 'You must be assigned to this category to approve it', 403);
+      }
+
       const assignedCats = directorCategories.map(c => c.category);
       console.log(`[approvePost] Director assigned to: ${assignedCats.join(', ')}, post category: ${post.category}`);
       if (!assignedCats.includes(post.category)) {
@@ -278,6 +330,26 @@ const rejectPost = asyncHandler(async (req, res) => {
 
   if (!rejectionNote) {
     return errorResponse(res, 'Rejection note is required', 400);
+  }
+
+  // Get the post to check its category
+  const postToCheck = await Post.findById(postId);
+  if (!postToCheck) {
+    return notFoundResponse(res, 'Post or already processed');
+  }
+
+  // Verify director is assigned (if they are not a super admin)
+  if (!req.member.isSuperAdmin) {
+    const directorCategories = await DirectorCategory.getByMember(req.member.memberId);
+    
+    if (directorCategories.length === 0) {
+      return errorResponse(res, 'You must be assigned to this category to reject it', 403);
+    }
+    
+    const assignedCats = directorCategories.map(c => c.category);
+    if (!assignedCats.includes(postToCheck.category)) {
+      return errorResponse(res, 'You are not assigned to reject this category', 403);
+    }
   }
 
   const post = await Post.reject(postId, req.member.memberId, rejectionNote);
@@ -503,8 +575,24 @@ const approveProjectPost = asyncHandler(async (req, res) => {
   const isTeamDirector = await Team.isDirector(linkedProject.team_id, req.member.memberId);
   const isGlobalDirector = req.member.role === 'director';
 
-  if (!isTeamDirector && !isGlobalDirector) {
-    return errorResponse(res, 'Only team directors can approve project posts', 403);
+  if (!isTeamDirector) {
+    if (!isGlobalDirector) {
+      return errorResponse(res, 'Only team directors can approve project posts', 403);
+    }
+    
+    // Global director: ensure they have power
+    if (!req.member.isSuperAdmin) {
+      const directorCategories = await DirectorCategory.getByMember(req.member.memberId);
+      
+      if (directorCategories.length === 0) {
+        return errorResponse(res, 'You must be assigned to this category to approve it', 403);
+      }
+      
+      const assignedCats = directorCategories.map(c => c.category);
+      if (post.category && !assignedCats.includes(post.category)) {
+        return errorResponse(res, 'You are not assigned to approve this category', 403);
+      }
+    }
   }
 
   // Approve and publish the post

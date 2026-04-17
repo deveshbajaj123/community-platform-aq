@@ -60,13 +60,23 @@ const DirectorDashboard = () => {
 
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [canApproveMembers, setCanApproveMembers] = useState(false)
 
   useEffect(() => {
-    const fetchStats = async () => {
+    const fetchData = async () => {
       try {
-        const result = await directorService.getDashboardStats()
-        if (result.success) {
-          setStats(result.data)
+        const [statsResult, catsResult] = await Promise.all([
+          directorService.getDashboardStats(),
+          directorService.getMyCategories()
+        ])
+        if (statsResult.success) {
+          setStats(statsResult.data)
+        }
+        if (isSuperAdmin) {
+          setCanApproveMembers(true)
+        } else if (catsResult.success) {
+          const cats = catsResult.data.categories.map((c: any) => c.category)
+          setCanApproveMembers(cats.includes('operations'))
         }
       } catch (error) {
         console.error('Failed to fetch stats:', error)
@@ -75,8 +85,8 @@ const DirectorDashboard = () => {
       }
     }
 
-    fetchStats()
-  }, [])
+    fetchData()
+  }, [isSuperAdmin])
 
   if (isLoading) {
     return (
@@ -95,14 +105,16 @@ const DirectorDashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatCard
-          title="Pending Approvals"
-          value={stats?.pendingMemberApprovals || 0}
-          icon={UserGroupIcon}
-          href="/director/approvals"
-          color="orange"
-          highlight
-        />
+        {canApproveMembers && (
+          <StatCard
+            title="Pending Approvals"
+            value={stats?.pendingMemberApprovals || 0}
+            icon={UserGroupIcon}
+            href="/director/approvals"
+            color="orange"
+            highlight
+          />
+        )}
         <StatCard
           title="Posts to Review"
           value={stats?.pendingPostReviews || 0}
@@ -133,20 +145,22 @@ const DirectorDashboard = () => {
           <h2 className="text-lg font-semibold text-gray-900">Quick Actions</h2>
         </Card.Header>
         <Card.Body className="space-y-2">
-          <Link
-            to="/director/approvals"
-            className="flex items-center gap-3 p-3 rounded-lg hover:bg-cream-100 transition-colors"
-          >
-            <div className="p-2 bg-orange-100 rounded-lg">
-              <UserGroupIcon className="w-5 h-5 text-orange-600" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">Review Member Applications</p>
-              <p className="text-sm text-gray-500">
-                {stats?.pendingMemberApprovals || 0} pending approval{stats?.pendingMemberApprovals !== 1 ? 's' : ''}
-              </p>
-            </div>
-          </Link>
+          {canApproveMembers && (
+            <Link
+              to="/director/approvals"
+              className="flex items-center gap-3 p-3 rounded-lg hover:bg-cream-100 transition-colors"
+            >
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <UserGroupIcon className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="font-medium text-gray-900">Review Member Applications</p>
+                <p className="text-sm text-gray-500">
+                  {stats?.pendingMemberApprovals || 0} pending approval{stats?.pendingMemberApprovals !== 1 ? 's' : ''}
+                </p>
+              </div>
+            </Link>
+          )}
 
           <Link
             to="/director/posts"

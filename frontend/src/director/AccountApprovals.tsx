@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowLeftIcon, CheckIcon, XMarkIcon, EnvelopeIcon, PhoneIcon, AcademicCapIcon } from '@heroicons/react/24/outline'
+import { ArrowLeftIcon, CheckIcon, XMarkIcon, EnvelopeIcon, PhoneIcon, AcademicCapIcon, LockClosedIcon } from '@heroicons/react/24/outline'
 import directorService, { PendingMember } from '../services/directorService'
 import Avatar from '../components/Avatar'
 import Button from '../components/Button'
@@ -9,8 +9,13 @@ import Modal from '../components/Modal'
 import TextArea from '../components/TextArea'
 import Alert from '../components/Alert'
 import Spinner from '../components/Spinner'
+import { useAuth } from '../auth/AuthContext'
 
 const AccountApprovals = () => {
+  const { member: currentMember } = useAuth()
+  const isSuperAdmin = currentMember?.isSuperAdmin || false
+
+  const [hasAccess, setHasAccess] = useState<boolean | null>(null) // null = loading
   const [members, setMembers] = useState<PendingMember[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -26,6 +31,20 @@ const AccountApprovals = () => {
   const [actionLoading, setActionLoading] = useState<number | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Check category access on mount
+  useEffect(() => {
+    if (isSuperAdmin) {
+      setHasAccess(true)
+      return
+    }
+    directorService.getMyCategories()
+      .then(result => {
+        const cats = result.success ? result.data.categories.map((c: any) => c.category) : []
+        setHasAccess(cats.includes('operations'))
+      })
+      .catch(() => setHasAccess(false))
+  }, [isSuperAdmin])
 
   const fetchMembers = async (pageNum: number, append: boolean = false) => {
     if (append) {
@@ -53,8 +72,12 @@ const AccountApprovals = () => {
   }
 
   useEffect(() => {
-    fetchMembers(1)
-  }, [])
+    if (hasAccess === true) {
+      fetchMembers(1)
+    } else if (hasAccess === false) {
+      setIsLoading(false)
+    }
+  }, [hasAccess])
 
   const handleLoadMore = () => {
     const nextPage = page + 1
@@ -119,10 +142,44 @@ const AccountApprovals = () => {
     })
   }
 
-  if (isLoading) {
+  // Still checking access
+  if (hasAccess === null || (hasAccess === true && isLoading)) {
     return (
       <div className="flex justify-center py-12">
         <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  // Access denied
+  if (hasAccess === false) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Link
+            to="/director"
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-cream-200 rounded-lg transition-colors"
+          >
+            <ArrowLeftIcon className="w-5 h-5" />
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Member Approvals</h1>
+            <p className="text-gray-500">Review and approve new member applications</p>
+          </div>
+        </div>
+        <Card>
+          <Card.Body className="text-center py-16">
+            <div className="flex justify-center mb-4">
+              <div className="p-4 bg-gray-100 rounded-full">
+                <LockClosedIcon className="w-8 h-8 text-gray-400" />
+              </div>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Restricted</h3>
+            <p className="text-gray-500 max-w-sm mx-auto">
+              Only <span className="font-medium text-gray-700">Operations directors</span> and super admins can review member applications.
+            </p>
+          </Card.Body>
+        </Card>
       </div>
     )
   }
