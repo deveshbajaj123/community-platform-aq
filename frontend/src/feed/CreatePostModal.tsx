@@ -168,7 +168,10 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated }: CreatePostModalProp
   }
 
   const handleSubmit = async () => {
-    if (!category) {
+    const activeTeam = myTeams.find(t => t.uuid === selectedTeamUuid) || null
+    const finalCategory = activeTeam ? activeTeam.category : category
+
+    if (!finalCategory) {
       setError('Please select a category')
       return
     }
@@ -193,7 +196,7 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated }: CreatePostModalProp
       if (selectedTeamUuid) {
         // Post through a team
         const result = await teamService.createTeamPost(selectedTeamUuid, {
-          category,
+          category: finalCategory,
           body: body.trim(),
           taggedMemberIds: selectedMemberIds.length > 0 ? selectedMemberIds : undefined,
           imageUrls: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
@@ -207,7 +210,7 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated }: CreatePostModalProp
       } else {
         // Regular post with optional tagged people
         const postData: CreatePostData = {
-          category,
+          category: finalCategory,
           body: body.trim(),
           imageUrls: uploadedImageUrls.length > 0 ? uploadedImageUrls : undefined,
           linkUrl: linkUrl || undefined,

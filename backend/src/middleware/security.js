@@ -15,7 +15,7 @@ const helmetConfig = helmet({
       connectSrc: ["'self'", 'https://accounts.google.com', process.env.FRONTEND_URL || 'http://localhost:5173'],
     },
   },
-  crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+  crossOriginOpenerPolicy: false,
   crossOriginResourcePolicy: { policy: 'cross-origin' },
 });
 
