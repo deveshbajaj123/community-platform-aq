@@ -21,6 +21,7 @@ router.delete('/:uuid', authMiddleware, requireDirector, teamController.deleteTe
 // Update Role: Super Admin, Team Creator
 // Remove: Super Admin, Global Director, Team Creator, Team Lead (or self)
 router.post('/:uuid/members', authMiddleware, teamController.addTeamMember);
+router.post('/:uuid/members/bulk', authMiddleware, teamController.addTeamMembersBulk);
 router.put('/:uuid/members/:memberId', authMiddleware, teamController.updateTeamMemberRole);
 router.delete('/:uuid/members/:memberId', authMiddleware, teamController.removeTeamMember);
 
@@ -31,5 +32,13 @@ router.post('/:uuid/posts', authMiddleware, requireActiveMember, teamController.
 router.get('/:uuid/pending-posts', authMiddleware, teamController.getTeamPendingPosts);
 router.post('/:uuid/pending-posts/:postId/approve', authMiddleware, teamController.approveTeamPost);
 router.post('/:uuid/pending-posts/:postId/reject', authMiddleware, teamController.rejectTeamPost);
+
+// Team join requests
+router.post('/:uuid/join-requests', authMiddleware, requireActiveMember, teamController.createJoinRequest);
+router.get('/:uuid/join-requests', authMiddleware, teamController.getJoinRequests);
+router.get('/:uuid/join-requests/my', authMiddleware, teamController.getMyJoinRequest);
+router.post('/:uuid/join-requests/:requestUuid/approve', authMiddleware, teamController.approveJoinRequest);
+router.post('/:uuid/join-requests/:requestUuid/reject', authMiddleware, teamController.rejectJoinRequest);
+router.delete('/:uuid/join-requests/:requestUuid', authMiddleware, teamController.cancelJoinRequest);
 
 module.exports = router;

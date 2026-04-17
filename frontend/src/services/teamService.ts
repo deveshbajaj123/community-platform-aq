@@ -41,6 +41,21 @@ export interface PendingTeamPost {
   images: { blobUrl: string; displayOrder: number }[]
 }
 
+export interface JoinRequest {
+  requestId?: number
+  uuid: string
+  teamId?: number
+  memberId?: number
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled'
+  message?: string | null
+  createdAt: string
+  // Member details (populated when leads fetch requests)
+  fullName?: string
+  email?: string
+  avatarUrl?: string
+  memberUuid?: string
+}
+
 interface GetTeamsParams {
   page?: number
   limit?: number
@@ -240,10 +255,75 @@ export const teamService = {
     category: string
     body: string
     taggedMemberIds?: number[]
+    imageUrls?: string[]
   }): Promise<{ success: boolean; data: { post: any }; message: string }> {
     const response = await api.post(`/teams/${teamUuid}/posts`, data)
     return response.data
-  }
+  },
+
+  /**
+   * Bulk add multiple members to a team at once
+   */
+  async addMembersBulk(uuid: string, members: { memberId: number; role: 'member' | 'lead' }[]): Promise<{
+    success: boolean
+    data: { added: any[]; failed: any[] }
+    message: string
+  }> {
+    const response = await api.post(`/teams/${uuid}/members/bulk`, { members })
+    return response.data
+  },
+
+  // ============================================================
+  // JOIN REQUESTS
+  // ============================================================
+
+  /**
+   * Apply to join a team (active members only)
+   */
+  async createJoinRequest(uuid: string, message?: string): Promise<{ success: boolean; data: { request: any }; message: string }> {
+    const response = await api.post(`/teams/${uuid}/join-requests`, { message })
+    return response.data
+  },
+
+  /**
+   * Get all pending join requests for a team (leads only)
+   */
+  async getJoinRequests(uuid: string): Promise<{ success: boolean; data: { requests: JoinRequest[]; total: number } }> {
+    const response = await api.get(`/teams/${uuid}/join-requests`)
+    return response.data
+  },
+
+  /**
+   * Get the current user's pending join request for this team
+   */
+  async getMyJoinRequest(uuid: string): Promise<{ success: boolean; data: { request: JoinRequest | null } }> {
+    const response = await api.get(`/teams/${uuid}/join-requests/my`)
+    return response.data
+  },
+
+  /**
+   * Approve a join request (leads only)
+   */
+  async approveJoinRequest(uuid: string, requestUuid: string): Promise<{ success: boolean; data: { request: any }; message: string }> {
+    const response = await api.post(`/teams/${uuid}/join-requests/${requestUuid}/approve`)
+    return response.data
+  },
+
+  /**
+   * Reject a join request (leads only)
+   */
+  async rejectJoinRequest(uuid: string, requestUuid: string): Promise<{ success: boolean; data: { request: any }; message: string }> {
+    const response = await api.post(`/teams/${uuid}/join-requests/${requestUuid}/reject`)
+    return response.data
+  },
+
+  /**
+   * Cancel own join request
+   */
+  async cancelJoinRequest(uuid: string, requestUuid: string): Promise<{ success: boolean; message: string }> {
+    const response = await api.delete(`/teams/${uuid}/join-requests/${requestUuid}`)
+    return response.data
+  },
 }
 
 export default teamService

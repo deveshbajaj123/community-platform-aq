@@ -9,9 +9,10 @@ import {
   ClipboardDocumentListIcon,
   CheckIcon,
   XMarkIcon,
-  PencilSquareIcon
+  PencilSquareIcon,
+  InboxIcon,
 } from '@heroicons/react/24/outline'
-import teamService, { TeamDetails, PendingTeamPost } from '../services/teamService'
+import teamService, { TeamDetails, PendingTeamPost, JoinRequest } from '../services/teamService'
 import Card from '../components/Card'
 import Button from '../components/Button'
 import Spinner from '../components/Spinner'
@@ -19,6 +20,7 @@ import Avatar from '../components/Avatar'
 import Alert from '../components/Alert'
 import AddMemberModal from './AddMemberModal'
 import CreateTeamPostModal from './CreateTeamPostModal'
+import JoinRequestModal from './JoinRequestModal'
 import { useAuth } from '../auth/AuthContext'
 
 const TeamDetailPage = () => {
@@ -26,13 +28,15 @@ const TeamDetailPage = () => {
   const { member: currentMember } = useAuth()
   const [team, setTeam] = useState<TeamDetails | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'about' | 'members' | 'pending'>('about')
+  const [activeTab, setActiveTab] = useState<'about' | 'members' | 'pending' | 'applications'>('about')
   const [showAddMemberModal, setShowAddMemberModal] = useState(false)
   const [showCreatePostModal, setShowCreatePostModal] = useState(false)
+  const [showJoinRequestModal, setShowJoinRequestModal] = useState(false)
   const [memberMenuOpen, setMemberMenuOpen] = useState<number | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null)
   const menuButtonRefs = useRef<Map<number, HTMLButtonElement>>(new Map())
   const [updatingMember, setUpdatingMember] = useState<number | null>(null)
+
   // Pending posts state
   const [pendingPosts, setPendingPosts] = useState<PendingTeamPost[]>([])
   const [pendingPostsLoading, setPendingPostsLoading] = useState(false)
@@ -41,6 +45,15 @@ const TeamDetailPage = () => {
   const [rejectingPost, setRejectingPost] = useState<number | null>(null)
   const [rejectionNote, setRejectionNote] = useState('')
   const [pendingPostsError, setPendingPostsError] = useState<string | null>(null)
+
+  // Join requests state
+  const [joinRequests, setJoinRequests] = useState<JoinRequest[]>([])
+  const [joinRequestsLoading, setJoinRequestsLoading] = useState(false)
+  const [joinRequestsCount, setJoinRequestsCount] = useState(0)
+  const [myJoinRequest, setMyJoinRequest] = useState<JoinRequest | null>(null)
+  const [cancellingRequest, setCancellingRequest] = useState(false)
+  const [processingRequest, setProcessingRequest] = useState<string | null>(null)
+  const [joinRequestsError, setJoinRequestsError] = useState<string | null>(null)
 
   // Permission checks
   const isSuperAdmin = currentMember?.isSuperAdmin || false
@@ -59,10 +72,13 @@ const TeamDetailPage = () => {
   const canManageMembers = isSuperAdmin || isGlobalDirector || isTeamCreator || isTeamLead
   const canChangeRoles = isSuperAdmin || isTeamCreator
   const canApprovePosts = isSuperAdmin || isGlobalDirector || isTeamCreator || isTeamLead
+  const canManageJoinRequests = isSuperAdmin || isGlobalDirector || isTeamCreator || isTeamLead
+
+  // Can apply if logged in, not already a member, not already applied
+  const canApply = !!currentMember && !isTeamMember && !myJoinRequest && !isSuperAdmin && !isGlobalDirector
 
   const fetchTeam = async () => {
     if (!uuid) return
-
     setIsLoading(true)
     try {
       const result = await teamService.getTeam(uuid)
@@ -80,10 +96,21 @@ const TeamDetailPage = () => {
     fetchTeam()
   }, [uuid])
 
-  // Fetch pending posts when tab is active and user can approve posts
+  // Fetch my join request status (for non-members)
+  useEffect(() => {
+    if (!uuid || !currentMember || isTeamMember || isSuperAdmin || isGlobalDirector) return
+    teamService.getMyJoinRequest(uuid)
+      .then(result => {
+        if (result.success) {
+          setMyJoinRequest(result.data.request)
+        }
+      })
+      .catch(() => {})
+  }, [uuid, currentMember, isTeamMember, isSuperAdmin, isGlobalDirector])
+
+  // Fetch pending posts when tab is active
   const fetchPendingPosts = async () => {
     if (!uuid) return
-
     setPendingPostsLoading(true)
     setPendingPostsError(null)
     try {
@@ -93,7 +120,6 @@ const TeamDetailPage = () => {
         setPendingPostsCount(result.pagination?.totalItems || result.data.length)
       }
     } catch (error: any) {
-      console.error('Failed to fetch pending posts:', error)
       setPendingPostsError(error.response?.data?.message || 'Failed to load pending posts')
     } finally {
       setPendingPostsLoading(false)
@@ -106,32 +132,62 @@ const TeamDetailPage = () => {
     }
   }, [uuid, activeTab, canApprovePosts])
 
-  // Also fetch pending posts count on initial load for badge
+  // Fetch pending posts count for badge on initial load
   useEffect(() => {
     if (uuid && canApprovePosts) {
       teamService.getPendingPosts(uuid, { limit: 1 }).then(result => {
         if (result.success) {
           setPendingPostsCount(result.pagination?.totalItems || result.data.length)
         }
-      }).catch(() => {
-        // Silently fail for badge count
-      })
+      }).catch(() => {})
     }
   }, [uuid, canApprovePosts])
 
+  // Fetch join requests when Applications tab is active
+  const fetchJoinRequests = async () => {
+    if (!uuid) return
+    setJoinRequestsLoading(true)
+    setJoinRequestsError(null)
+    try {
+      const result = await teamService.getJoinRequests(uuid)
+      if (result.success) {
+        setJoinRequests(result.data.requests)
+        setJoinRequestsCount(result.data.total)
+      }
+    } catch (error: any) {
+      setJoinRequestsError(error.response?.data?.message || 'Failed to load applications')
+    } finally {
+      setJoinRequestsLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (activeTab === 'applications' && canManageJoinRequests) {
+      fetchJoinRequests()
+    }
+  }, [uuid, activeTab, canManageJoinRequests])
+
+  // Fetch join request count for badge on initial load
+  useEffect(() => {
+    if (uuid && canManageJoinRequests) {
+      teamService.getJoinRequests(uuid).then(result => {
+        if (result.success) {
+          setJoinRequestsCount(result.data.total)
+        }
+      }).catch(() => {})
+    }
+  }, [uuid, canManageJoinRequests])
+
   const handleApprovePost = async (postId: number) => {
     if (!uuid) return
-
     setApprovingPost(postId)
     try {
       const result = await teamService.approvePost(uuid, postId)
       if (result.success) {
-        // Remove from pending list
         setPendingPosts(prev => prev.filter(p => p.postId !== postId))
         setPendingPostsCount(prev => Math.max(0, prev - 1))
       }
     } catch (error: any) {
-      console.error('Failed to approve post:', error)
       setPendingPostsError(error.response?.data?.message || 'Failed to approve post')
     } finally {
       setApprovingPost(null)
@@ -143,19 +199,16 @@ const TeamDetailPage = () => {
       setPendingPostsError('Please provide a rejection note')
       return
     }
-
     setApprovingPost(postId)
     try {
       const result = await teamService.rejectPost(uuid, postId, rejectionNote.trim())
       if (result.success) {
-        // Remove from pending list
         setPendingPosts(prev => prev.filter(p => p.postId !== postId))
         setPendingPostsCount(prev => Math.max(0, prev - 1))
         setRejectingPost(null)
         setRejectionNote('')
       }
     } catch (error: any) {
-      console.error('Failed to reject post:', error)
       setPendingPostsError(error.response?.data?.message || 'Failed to reject post')
     } finally {
       setApprovingPost(null)
@@ -164,13 +217,10 @@ const TeamDetailPage = () => {
 
   const handleRemoveMember = async (memberId: number) => {
     if (!uuid || !window.confirm('Are you sure you want to remove this member from the team?')) return
-
     setUpdatingMember(memberId)
     try {
       const result = await teamService.removeMember(uuid, memberId)
-      if (result.success) {
-        fetchTeam()
-      }
+      if (result.success) fetchTeam()
     } catch (error) {
       console.error('Failed to remove member:', error)
     } finally {
@@ -182,19 +232,62 @@ const TeamDetailPage = () => {
 
   const handleUpdateRole = async (memberId: number, newRole: string) => {
     if (!uuid) return
-
     setUpdatingMember(memberId)
     try {
       const result = await teamService.updateMemberRole(uuid, memberId, newRole)
-      if (result.success) {
-        fetchTeam()
-      }
+      if (result.success) fetchTeam()
     } catch (error) {
       console.error('Failed to update member role:', error)
     } finally {
       setUpdatingMember(null)
       setMemberMenuOpen(null)
       setMenuPosition(null)
+    }
+  }
+
+  const handleCancelJoinRequest = async () => {
+    if (!uuid || !myJoinRequest) return
+    setCancellingRequest(true)
+    try {
+      await teamService.cancelJoinRequest(uuid, myJoinRequest.uuid)
+      setMyJoinRequest(null)
+    } catch (err: any) {
+      console.error('Failed to cancel request:', err)
+    } finally {
+      setCancellingRequest(false)
+    }
+  }
+
+  const handleApproveJoinRequest = async (requestUuid: string) => {
+    if (!uuid) return
+    setProcessingRequest(requestUuid)
+    try {
+      const result = await teamService.approveJoinRequest(uuid, requestUuid)
+      if (result.success) {
+        setJoinRequests(prev => prev.filter(r => r.uuid !== requestUuid))
+        setJoinRequestsCount(prev => Math.max(0, prev - 1))
+        fetchTeam() // refresh member list
+      }
+    } catch (err: any) {
+      setJoinRequestsError(err?.response?.data?.message || 'Failed to approve application')
+    } finally {
+      setProcessingRequest(null)
+    }
+  }
+
+  const handleRejectJoinRequest = async (requestUuid: string) => {
+    if (!uuid) return
+    setProcessingRequest(requestUuid)
+    try {
+      const result = await teamService.rejectJoinRequest(uuid, requestUuid)
+      if (result.success) {
+        setJoinRequests(prev => prev.filter(r => r.uuid !== requestUuid))
+        setJoinRequestsCount(prev => Math.max(0, prev - 1))
+      }
+    } catch (err: any) {
+      setJoinRequestsError(err?.response?.data?.message || 'Failed to reject application')
+    } finally {
+      setProcessingRequest(null)
     }
   }
 
@@ -270,15 +363,41 @@ const TeamDetailPage = () => {
                 </div>
               </div>
 
-              {/* Create Post Button (Team members only) */}
-              {isTeamMember && (
-                <div className="mt-4">
+              {/* Action Buttons */}
+              <div className="mt-4 flex flex-wrap gap-2">
+                {/* Create Post — team members only */}
+                {isTeamMember && (
                   <Button onClick={() => setShowCreatePostModal(true)}>
                     <PencilSquareIcon className="w-5 h-5 mr-1.5" />
                     Create Post
                   </Button>
-                </div>
-              )}
+                )}
+
+                {/* Apply to Join — non-members */}
+                {canApply && (
+                  <Button variant="secondary" onClick={() => setShowJoinRequestModal(true)}>
+                    Apply to Join
+                  </Button>
+                )}
+
+                {/* Application Pending badge — for members who have applied */}
+                {!isTeamMember && myJoinRequest && (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium bg-amber-50 text-amber-800 border border-amber-200 rounded-lg">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 inline-block" />
+                      Application Pending
+                    </span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleCancelJoinRequest}
+                      loading={cancellingRequest}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </Card.Body>
@@ -286,12 +405,12 @@ const TeamDetailPage = () => {
 
       {/* Tabs */}
       <div className="border-b border-gray-200">
-        <nav className="flex space-x-8">
+        <nav className="flex space-x-8 overflow-x-auto">
           {(['about', 'members'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`py-4 px-1 border-b-2 font-medium text-sm capitalize ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm capitalize whitespace-nowrap ${
                 activeTab === tab
                   ? 'border-forest-500 text-forest-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -301,11 +420,12 @@ const TeamDetailPage = () => {
               {tab === 'members' && ` (${team.memberCount})`}
             </button>
           ))}
-          {/* Pending Posts Tab (for those who can approve posts) */}
+
+          {/* Pending Posts Tab */}
           {canApprovePosts && (
             <button
               onClick={() => setActiveTab('pending')}
-              className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 ${
+              className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${
                 activeTab === 'pending'
                   ? 'border-forest-500 text-forest-600'
                   : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
@@ -316,6 +436,26 @@ const TeamDetailPage = () => {
               {pendingPostsCount > 0 && (
                 <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium bg-amber-100 text-amber-800 rounded-full">
                   {pendingPostsCount}
+                </span>
+              )}
+            </button>
+          )}
+
+          {/* Applications Tab — for those who can manage the team */}
+          {canManageJoinRequests && (
+            <button
+              onClick={() => setActiveTab('applications')}
+              className={`py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2 whitespace-nowrap ${
+                activeTab === 'applications'
+                  ? 'border-forest-500 text-forest-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              <InboxIcon className="w-4 h-4" />
+              Applications
+              {joinRequestsCount > 0 && (
+                <span className="inline-flex items-center justify-center px-2 py-0.5 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
+                  {joinRequestsCount}
                 </span>
               )}
             </button>
@@ -343,12 +483,11 @@ const TeamDetailPage = () => {
         {activeTab === 'members' && (
           <Card>
             <Card.Body>
-              {/* Add Member Button (for those who can manage members) */}
               {canManageMembers && (
                 <div className="flex justify-end mb-4">
                   <Button onClick={() => setShowAddMemberModal(true)}>
                     <PlusIcon className="w-5 h-5 mr-1.5" />
-                    Add Member
+                    Add Members
                   </Button>
                 </div>
               )}
@@ -364,22 +503,14 @@ const TeamDetailPage = () => {
                         to={`/profile/${member.uuid}`}
                         className="flex items-center gap-4 flex-1 min-w-0"
                       >
-                        <Avatar
-                          src={member.avatarUrl}
-                          name={member.fullName}
-                          size="md"
-                        />
+                        <Avatar src={member.avatarUrl} name={member.fullName} size="md" />
                         <div className="flex-1 min-w-0">
-                          <p className="font-medium text-gray-900 truncate">
-                            {member.fullName}
-                          </p>
+                          <p className="font-medium text-gray-900 truncate">{member.fullName}</p>
                           <p className="text-sm text-gray-500">{member.email}</p>
                           {member.joinedAt && (
                             <p className="text-xs text-gray-400 mt-0.5">
                               Joined {new Date(member.joinedAt).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric'
+                                month: 'short', day: 'numeric', year: 'numeric'
                               })}
                             </p>
                           )}
@@ -390,7 +521,6 @@ const TeamDetailPage = () => {
                         {teamService.getRoleLabel(member.role)}
                       </span>
 
-                      {/* Member Actions (for those who can manage members) */}
                       {canManageMembers && member.uuid !== currentMember?.uuid && (
                         <div className="relative">
                           <button
@@ -405,29 +535,17 @@ const TeamDetailPage = () => {
                                 const button = menuButtonRefs.current.get(member.memberId)
                                 if (button) {
                                   const rect = button.getBoundingClientRect()
-                                  const menuWidth = 192 // w-48 = 12rem = 192px
-                                  const menuHeight = 200 // approximate height
+                                  const menuWidth = 192
+                                  const menuHeight = 200
                                   const viewportHeight = window.innerHeight
                                   const viewportWidth = window.innerWidth
 
-                                  // Position menu to the left of button, below by default
                                   let left = rect.right - menuWidth
                                   let top = rect.bottom + 4
 
-                                  // If menu would go off bottom, show above
-                                  if (top + menuHeight > viewportHeight) {
-                                    top = rect.top - menuHeight - 4
-                                  }
-
-                                  // If menu would go off left edge, align to left edge with padding
-                                  if (left < 8) {
-                                    left = 8
-                                  }
-
-                                  // If menu would go off right edge
-                                  if (left + menuWidth > viewportWidth - 8) {
-                                    left = viewportWidth - menuWidth - 8
-                                  }
+                                  if (top + menuHeight > viewportHeight) top = rect.top - menuHeight - 4
+                                  if (left < 8) left = 8
+                                  if (left + menuWidth > viewportWidth - 8) left = viewportWidth - menuWidth - 8
 
                                   setMenuPosition({ top, left })
                                 }
@@ -450,7 +568,7 @@ const TeamDetailPage = () => {
           </Card>
         )}
 
-        {/* Pending Posts Tab (for those who can approve posts) */}
+        {/* Pending Posts Tab */}
         {activeTab === 'pending' && canApprovePosts && (
           <>
             {pendingPostsError && (
@@ -460,9 +578,7 @@ const TeamDetailPage = () => {
             )}
 
             {pendingPostsLoading ? (
-              <div className="flex justify-center py-12">
-                <Spinner />
-              </div>
+              <div className="flex justify-center py-12"><Spinner /></div>
             ) : pendingPosts.length > 0 ? (
               <div className="space-y-4">
                 {pendingPosts.map(post => (
@@ -470,11 +586,7 @@ const TeamDetailPage = () => {
                     <Card.Body>
                       <div className="flex items-start gap-4">
                         <Link to={`/profile/${post.authorUuid}`}>
-                          <Avatar
-                            src={post.authorAvatar}
-                            name={post.authorName}
-                            size="md"
-                          />
+                          <Avatar src={post.authorAvatar} name={post.authorName} size="md" />
                         </Link>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 mb-1">
@@ -490,21 +602,14 @@ const TeamDetailPage = () => {
                           </div>
                           <p className="text-gray-700 whitespace-pre-wrap mb-3">{post.body}</p>
 
-                          {/* Post Images */}
                           {post.images && post.images.length > 0 && (
                             <div className="grid grid-cols-2 gap-2 mb-3">
-                              {post.images.map((img) => (
-                                <img
-                                  key={img.blobUrl}
-                                  src={img.blobUrl}
-                                  alt=""
-                                  className="w-full h-32 object-cover rounded-lg"
-                                />
+                              {post.images.map(img => (
+                                <img key={img.blobUrl} src={img.blobUrl} alt="" className="w-full h-32 object-cover rounded-lg" />
                               ))}
                             </div>
                           )}
 
-                          {/* Rejection Note Input */}
                           {rejectingPost === post.postId && (
                             <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
                               <label className="block text-sm font-medium text-red-800 mb-1">
@@ -512,7 +617,7 @@ const TeamDetailPage = () => {
                               </label>
                               <textarea
                                 value={rejectionNote}
-                                onChange={(e) => setRejectionNote(e.target.value)}
+                                onChange={e => setRejectionNote(e.target.value)}
                                 placeholder="Explain why this post is being rejected..."
                                 rows={2}
                                 className="w-full px-3 py-2 border border-red-300 rounded-lg text-sm focus:ring-red-500 focus:border-red-500"
@@ -530,10 +635,7 @@ const TeamDetailPage = () => {
                                 <Button
                                   size="sm"
                                   variant="secondary"
-                                  onClick={() => {
-                                    setRejectingPost(null)
-                                    setRejectionNote('')
-                                  }}
+                                  onClick={() => { setRejectingPost(null); setRejectionNote('') }}
                                 >
                                   Cancel
                                 </Button>
@@ -541,7 +643,6 @@ const TeamDetailPage = () => {
                             </div>
                           )}
 
-                          {/* Action Buttons */}
                           {rejectingPost !== post.postId && (
                             <div className="flex gap-2">
                               <Button
@@ -575,9 +676,88 @@ const TeamDetailPage = () => {
                 <Card.Body className="text-center py-12">
                   <div className="text-4xl mb-4">✅</div>
                   <h3 className="text-lg font-medium text-gray-900 mb-2">No pending posts</h3>
-                  <p className="text-gray-500">
-                    All posts have been reviewed. New posts from team members will appear here.
-                  </p>
+                  <p className="text-gray-500">All posts have been reviewed.</p>
+                </Card.Body>
+              </Card>
+            )}
+          </>
+        )}
+
+        {/* Applications Tab */}
+        {activeTab === 'applications' && canManageJoinRequests && (
+          <>
+            {joinRequestsError && (
+              <Alert variant="error" onClose={() => setJoinRequestsError(null)} className="mb-4">
+                {joinRequestsError}
+              </Alert>
+            )}
+
+            {joinRequestsLoading ? (
+              <div className="flex justify-center py-12"><Spinner /></div>
+            ) : joinRequests.length > 0 ? (
+              <div className="space-y-4">
+                {joinRequests.map(req => (
+                  <Card key={req.uuid}>
+                    <Card.Body>
+                      <div className="flex items-start gap-4">
+                        <Avatar src={req.avatarUrl} name={req.fullName || '?'} size="md" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-0.5">
+                            {req.memberUuid ? (
+                              <Link
+                                to={`/profile/${req.memberUuid}`}
+                                className="font-medium text-gray-900 hover:text-forest-600"
+                              >
+                                {req.fullName}
+                              </Link>
+                            ) : (
+                              <span className="font-medium text-gray-900">{req.fullName}</span>
+                            )}
+                            <span className="text-xs text-gray-400">
+                              {new Date(req.createdAt).toLocaleDateString('en-US', {
+                                month: 'short', day: 'numeric', year: 'numeric'
+                              })}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-500 mb-2">{req.email}</p>
+                          {req.message && (
+                            <p className="text-sm text-gray-700 bg-gray-50 px-3 py-2 rounded-lg mb-3 italic">
+                              "{req.message}"
+                            </p>
+                          )}
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleApproveJoinRequest(req.uuid)}
+                              loading={processingRequest === req.uuid}
+                              className="bg-green-600 hover:bg-green-700 text-white"
+                            >
+                              <CheckIcon className="w-4 h-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => handleRejectJoinRequest(req.uuid)}
+                              disabled={processingRequest === req.uuid}
+                              className="text-red-600 hover:bg-red-50"
+                            >
+                              <XMarkIcon className="w-4 h-4 mr-1" />
+                              Decline
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <Card>
+                <Card.Body className="text-center py-12">
+                  <div className="text-4xl mb-4">📬</div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">No pending applications</h3>
+                  <p className="text-gray-500">New applications from members will appear here.</p>
                 </Card.Body>
               </Card>
             )}
@@ -600,10 +780,7 @@ const TeamDetailPage = () => {
           isOpen={showCreatePostModal}
           onClose={() => setShowCreatePostModal(false)}
           onSuccess={() => {
-            // Refresh pending posts count if user can approve posts
-            if (canApprovePosts) {
-              fetchPendingPosts()
-            }
+            if (canApprovePosts) fetchPendingPosts()
           }}
           teamUuid={uuid || ''}
           teamName={team.name}
@@ -612,14 +789,28 @@ const TeamDetailPage = () => {
         />
       )}
 
+      {/* Join Request Modal */}
+      {team && (
+        <JoinRequestModal
+          isOpen={showJoinRequestModal}
+          onClose={() => setShowJoinRequestModal(false)}
+          teamName={team.name}
+          teamUuid={uuid || ''}
+          onSuccess={() => {
+            // Refresh my join request status
+            if (uuid) {
+              teamService.getMyJoinRequest(uuid).then(r => {
+                if (r.success) setMyJoinRequest(r.data.request)
+              }).catch(() => {})
+            }
+          }}
+        />
+      )}
+
       {/* Member Actions Dropdown (Portal) */}
       {memberMenuOpen !== null && menuPosition && createPortal(
         (() => {
           const targetMember = team?.members?.find(m => m.memberId === memberMenuOpen)
-
-          // Filter available roles based on permissions
-          // - 'member' role: anyone who can manage can assign
-          // - 'lead' role: only super-admin or team creator
           const availableRoles = teamService.getRoles().filter(role => {
             if (role === 'member') return true
             if (role === 'lead') return canChangeRoles
@@ -628,20 +819,14 @@ const TeamDetailPage = () => {
 
           return (
             <>
-              {/* Backdrop */}
               <div
                 className="fixed inset-0 z-[9998]"
-                onClick={() => {
-                  setMemberMenuOpen(null)
-                  setMenuPosition(null)
-                }}
+                onClick={() => { setMemberMenuOpen(null); setMenuPosition(null) }}
               />
-              {/* Dropdown Menu */}
               <div
                 className="fixed w-48 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-[9999]"
                 style={{ top: menuPosition.top, left: menuPosition.left }}
               >
-                {/* Change Role Section - only show if user can change roles and there are role options */}
                 {canChangeRoles && availableRoles.length > 1 && (
                   <>
                     <div className="px-3 py-2 text-xs font-medium text-gray-500 uppercase">
@@ -663,7 +848,6 @@ const TeamDetailPage = () => {
                     <div className="border-t border-gray-100 mt-1 pt-1" />
                   </>
                 )}
-                {/* Remove button */}
                 <button
                   onClick={() => handleRemoveMember(memberMenuOpen)}
                   disabled={updatingMember === memberMenuOpen}
@@ -677,7 +861,6 @@ const TeamDetailPage = () => {
         })(),
         document.body
       )}
-
     </div>
   )
 }

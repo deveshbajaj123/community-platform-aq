@@ -1,6 +1,7 @@
 const Team = require('../models/Team');
 const Post = require('../models/Post');
 const DirectorCategory = require('../models/DirectorCategory');
+const TeamJoinRequest = require('../models/TeamJoinRequest');
 const { pool } = require('../config/database');
 const { successResponse, errorResponse, notFoundResponse, paginatedResponse, forbiddenResponse } = require('../utils/responseHelper');
 const { asyncHandler } = require('../utils/errorHandler');
@@ -626,6 +627,297 @@ const createTeamPost = asyncHandler(async (req, res) => {
   }, message, 201);
 });
 
+/**
+ * Bulk add members to a team
+ * POST /api/teams/:uuid/members/bulk
+ * Body: { members: [{ memberId, role }] }
+ */
+const addTeamMembersBulk = asyncHandler(async (req, res) => {
+  const { uuid } = req.params;
+  const { members } = req.body;
+
+  if (!Array.isArray(members) || members.length === 0) {
+    return errorResponse(res, 'members array is required and must not be empty', 400);
+  }
+
+  if (members.length > 50) {
+    return errorResponse(res, 'Cannot add more than 50 members at once', 400);
+  }
+
+  const team = await Team.findByUuid(uuid);
+  if (!team) {
+    return notFoundResponse(res, 'Team');
+  }
+
+  // Check if user can manage team members
+  const managePerms = await Team.canManageTeam(
+    team.teamId,
+    req.member.memberId,
+    req.member.role,
+    req.member.isSuperAdmin || false
+  );
+
+  if (!managePerms.canManage) {
+    return forbiddenResponse(res, 'You do not have permission to add members to this team');
+  }
+
+  const added = [];
+  const failed = [];
+
+  for (const entry of members) {
+    const { memberId, role } = entry;
+    if (!memberId) {
+      failed.push({ memberId, reason: 'memberId is required' });
+      continue;
+    }
+
+    const assignedRole = role || 'member';
+
+    try {
+      const membership = await Team.addMember(team.teamId, memberId, assignedRole);
+      added.push({ memberId, role: assignedRole, membership });
+    } catch (err) {
+      // Likely a duplicate key (already a member)
+      failed.push({ memberId, reason: err.message || 'Failed to add member' });
+    }
+  }
+
+  if (added.length > 0) {
+    const clientInfo = getClientInfo(req);
+    await logAuditEvent({
+      memberId: req.member.memberId,
+      action: 'TEAM_MEMBERS_BULK_ADDED',
+      entityType: 'team',
+      entityId: team.teamId,
+      ...clientInfo,
+      details: { addedCount: added.length, failedCount: failed.length }
+    });
+  }
+
+  return successResponse(
+    res,
+    { added, failed },
+    `Added ${added.length} member${added.length !== 1 ? 's' : ''}${failed.length > 0 ? `, ${failed.length} failed` : ''}`
+  );
+});
+
+// ============================================================
+// TEAM JOIN REQUESTS
+// ============================================================
+
+/**
+ * Apply to join a team
+ * POST /api/teams/:uuid/join-requests
+ * Requires active membership in the platform
+ */
+const createJoinRequest = asyncHandler(async (req, res) => {
+  const { uuid } = req.params;
+  const { message } = req.body;
+
+  const team = await Team.findByUuid(uuid);
+  if (!team) {
+    return notFoundResponse(res, 'Team');
+  }
+
+  // Check if already a team member
+  const existing = await Team.isMember(team.teamId, req.member.memberId);
+  if (existing) {
+    return errorResponse(res, 'You are already a member of this team', 400);
+  }
+
+  // Check if already has a pending request
+  const pendingReq = await TeamJoinRequest.getByMemberAndTeam(req.member.memberId, team.teamId);
+  if (pendingReq) {
+    return errorResponse(res, 'You already have a pending application for this team', 400);
+  }
+
+  const request = await TeamJoinRequest.create({
+    teamId: team.teamId,
+    memberId: req.member.memberId,
+    message: message || null
+  });
+
+  return successResponse(res, { request }, 'Application submitted successfully', 201);
+});
+
+/**
+ * Get pending join requests for a team
+ * GET /api/teams/:uuid/join-requests
+ * Requires team management permission
+ */
+const getJoinRequests = asyncHandler(async (req, res) => {
+  const { uuid } = req.params;
+
+  const team = await Team.findByUuid(uuid);
+  if (!team) {
+    return notFoundResponse(res, 'Team');
+  }
+
+  // Check if user can manage the team
+  const managePerms = await Team.canManageTeam(
+    team.teamId,
+    req.member.memberId,
+    req.member.role,
+    req.member.isSuperAdmin || false
+  );
+
+  if (!managePerms.canManage) {
+    return forbiddenResponse(res, 'You do not have permission to view join requests for this team');
+  }
+
+  const requests = await TeamJoinRequest.getPendingByTeam(team.teamId);
+
+  return successResponse(res, { requests, total: requests.length });
+});
+
+/**
+ * Get the current user's join request status for a team
+ * GET /api/teams/:uuid/join-requests/my
+ */
+const getMyJoinRequest = asyncHandler(async (req, res) => {
+  const { uuid } = req.params;
+
+  const team = await Team.findByUuid(uuid);
+  if (!team) {
+    return notFoundResponse(res, 'Team');
+  }
+
+  const request = await TeamJoinRequest.getByMemberAndTeam(req.member.memberId, team.teamId);
+
+  return successResponse(res, { request: request || null });
+});
+
+/**
+ * Approve a join request
+ * POST /api/teams/:uuid/join-requests/:requestUuid/approve
+ */
+const approveJoinRequest = asyncHandler(async (req, res) => {
+  const { uuid, requestUuid } = req.params;
+
+  const team = await Team.findByUuid(uuid);
+  if (!team) {
+    return notFoundResponse(res, 'Team');
+  }
+
+  // Check management permission
+  const managePerms = await Team.canManageTeam(
+    team.teamId,
+    req.member.memberId,
+    req.member.role,
+    req.member.isSuperAdmin || false
+  );
+
+  if (!managePerms.canManage) {
+    return forbiddenResponse(res, 'You do not have permission to approve join requests');
+  }
+
+  const joinReq = await TeamJoinRequest.findByUuid(requestUuid);
+  if (!joinReq || joinReq.teamId !== team.teamId) {
+    return notFoundResponse(res, 'Join request');
+  }
+
+  if (joinReq.status !== 'pending') {
+    return errorResponse(res, 'This request has already been processed', 400);
+  }
+
+  // Add member to team
+  await Team.addMember(team.teamId, joinReq.memberId, 'member');
+
+  // Update request status
+  const updated = await TeamJoinRequest.approve(joinReq.requestId, req.member.memberId);
+
+  const clientInfo = getClientInfo(req);
+  await logAuditEvent({
+    memberId: req.member.memberId,
+    action: 'TEAM_JOIN_REQUEST_APPROVED',
+    entityType: 'team',
+    entityId: team.teamId,
+    ...clientInfo,
+    details: { applicantMemberId: joinReq.memberId }
+  });
+
+  return successResponse(res, { request: updated }, 'Application approved — member added to team');
+});
+
+/**
+ * Reject a join request
+ * POST /api/teams/:uuid/join-requests/:requestUuid/reject
+ */
+const rejectJoinRequest = asyncHandler(async (req, res) => {
+  const { uuid, requestUuid } = req.params;
+
+  const team = await Team.findByUuid(uuid);
+  if (!team) {
+    return notFoundResponse(res, 'Team');
+  }
+
+  // Check management permission
+  const managePerms = await Team.canManageTeam(
+    team.teamId,
+    req.member.memberId,
+    req.member.role,
+    req.member.isSuperAdmin || false
+  );
+
+  if (!managePerms.canManage) {
+    return forbiddenResponse(res, 'You do not have permission to reject join requests');
+  }
+
+  const joinReq = await TeamJoinRequest.findByUuid(requestUuid);
+  if (!joinReq || joinReq.teamId !== team.teamId) {
+    return notFoundResponse(res, 'Join request');
+  }
+
+  if (joinReq.status !== 'pending') {
+    return errorResponse(res, 'This request has already been processed', 400);
+  }
+
+  const updated = await TeamJoinRequest.reject(joinReq.requestId, req.member.memberId);
+
+  const clientInfo = getClientInfo(req);
+  await logAuditEvent({
+    memberId: req.member.memberId,
+    action: 'TEAM_JOIN_REQUEST_REJECTED',
+    entityType: 'team',
+    entityId: team.teamId,
+    ...clientInfo,
+    details: { applicantMemberId: joinReq.memberId }
+  });
+
+  return successResponse(res, { request: updated }, 'Application rejected');
+});
+
+/**
+ * Cancel own join request
+ * DELETE /api/teams/:uuid/join-requests/:requestUuid
+ */
+const cancelJoinRequest = asyncHandler(async (req, res) => {
+  const { uuid, requestUuid } = req.params;
+
+  const team = await Team.findByUuid(uuid);
+  if (!team) {
+    return notFoundResponse(res, 'Team');
+  }
+
+  const joinReq = await TeamJoinRequest.findByUuid(requestUuid);
+  if (!joinReq || joinReq.teamId !== team.teamId) {
+    return notFoundResponse(res, 'Join request');
+  }
+
+  // Must be the applicant's own request
+  if (joinReq.memberId !== req.member.memberId) {
+    return forbiddenResponse(res, 'You can only cancel your own join request');
+  }
+
+  if (joinReq.status !== 'pending') {
+    return errorResponse(res, 'This request has already been processed', 400);
+  }
+
+  await TeamJoinRequest.cancel(joinReq.requestId);
+
+  return successResponse(res, null, 'Application cancelled');
+});
+
 module.exports = {
   getTeams,
   getTeam,
@@ -634,6 +926,7 @@ module.exports = {
   deleteTeam,
   getTeamMembers,
   addTeamMember,
+  addTeamMembersBulk,
   removeTeamMember,
   updateTeamMemberRole,
   getMyTeams,
@@ -641,5 +934,12 @@ module.exports = {
   createTeamPost,
   getTeamPendingPosts,
   approveTeamPost,
-  rejectTeamPost
+  rejectTeamPost,
+  // Join requests
+  createJoinRequest,
+  getJoinRequests,
+  getMyJoinRequest,
+  approveJoinRequest,
+  rejectJoinRequest,
+  cancelJoinRequest,
 };
