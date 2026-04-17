@@ -10,6 +10,14 @@ import Button from '../components/Button'
 import { useDebounce } from '../hooks/useDebounce'
 import { useAuth } from '../auth/AuthContext'
 
+const CATEGORY_EMOJIS: Record<string, string> = {
+  events: '🎪',
+  welfare: '💚',
+  content: '📝',
+  operations: '⚙️',
+  labs: '🔬',
+}
+
 const TeamsPage = () => {
   const { member } = useAuth()
   const [teams, setTeams] = useState<Team[]>([])
@@ -69,50 +77,59 @@ const TeamsPage = () => {
   const categories = teamService.getCategories()
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+    <div className="space-y-5">
+      {/* Header — stacks on mobile, row on sm+ */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Teams</h1>
-          <p className="text-gray-600 mt-1">Explore our community teams and groups</p>
+          <p className="text-gray-600 mt-0.5 text-sm sm:text-base">Explore our community teams and groups</p>
         </div>
         {isDirector && (
-          <Button onClick={() => setShowCreateModal(true)}>
+          <Button onClick={() => setShowCreateModal(true)} className="self-start sm:self-auto">
             <PlusIcon className="w-5 h-5 mr-1.5" />
             Add Team
           </Button>
         )}
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        {/* Search */}
-        <div className="flex-1">
-          <div className="relative">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search teams..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
+      {/* Search */}
+      <div className="relative">
+        <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <Input
+          type="text"
+          placeholder="Search teams..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-10"
+        />
+      </div>
 
-        {/* Category Filter */}
-        <select
-          value={category}
-          onChange={(e) => setCategory(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-forest-500 focus:border-forest-500"
+      {/* Category Filter — scrollable pill row on mobile */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap scrollbar-none">
+        <button
+          onClick={() => setCategory('')}
+          className={`flex-shrink-0 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            category === ''
+              ? 'bg-forest-500 text-white'
+              : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+          }`}
         >
-          <option value="">All Categories</option>
-          {categories.map(cat => (
-            <option key={cat} value={cat}>
-              {teamService.getCategoryLabel(cat)}
-            </option>
-          ))}
-        </select>
+          All
+        </button>
+        {categories.map(cat => (
+          <button
+            key={cat}
+            onClick={() => setCategory(category === cat ? '' : cat)}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              category === cat
+                ? 'bg-forest-500 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            <span>{CATEGORY_EMOJIS[cat]}</span>
+            <span>{teamService.getCategoryLabel(cat)}</span>
+          </button>
+        ))}
       </div>
 
       {/* Teams Grid */}
@@ -134,7 +151,7 @@ const TeamsPage = () => {
         </Card>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
             {teams.map(team => (
               <TeamCard key={team.uuid} team={team} />
             ))}
@@ -142,7 +159,7 @@ const TeamsPage = () => {
 
           {/* Load More */}
           {hasMore && (
-            <div className="flex justify-center pt-4">
+            <div className="flex justify-center pt-2">
               <Button
                 onClick={handleLoadMore}
                 loading={isLoadingMore}
