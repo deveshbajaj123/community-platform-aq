@@ -8,7 +8,7 @@ const PublicLayout = () => {
   return (
     <div className="min-h-screen bg-cream-100">
       {/* Header */}
-      <header className="bg-white shadow-sm border-b border-cream-200">
+      <header className="sticky top-0 z-40 bg-white shadow-sm border-b border-cream-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
             <Link to="/" className="flex items-center space-x-3">
