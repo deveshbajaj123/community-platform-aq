@@ -1,4 +1,5 @@
 import { Outlet, Link } from 'react-router-dom'
+import { HomeIcon, UserGroupIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../auth/AuthContext'
 
 const PublicLayout = () => {
@@ -21,14 +22,16 @@ const PublicLayout = () => {
             <nav className="hidden md:flex items-center space-x-6">
               <Link
                 to="/"
-                className="text-sm font-medium text-gray-600 hover:text-forest-600"
+                className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-forest-600"
               >
+                <HomeIcon className="w-4 h-4" />
                 Feed
               </Link>
               <Link
                 to="/teams"
-                className="text-sm font-medium text-gray-600 hover:text-forest-600"
+                className="flex items-center gap-1.5 text-sm font-medium text-gray-600 hover:text-forest-600"
               >
+                <UserGroupIcon className="w-4 h-4" />
                 Teams
               </Link>
             </nav>
