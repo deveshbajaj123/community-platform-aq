@@ -4,7 +4,7 @@
  */
 const { pool } = require('../src/config/database');
 
-const IMG_BASE = 'http://localhost:5173/demo-images';
+const IMG_BASE = 'https://keen-surprise-production-9755.up.railway.app/demo-images';
 
 const MEMBERS = [
   { email: 'aarav.sen@demo.local',     full_name: 'Aarav Sen',           class_grade: '11' },
@@ -181,6 +181,15 @@ async function run() {
       const authorName = memberNames[i % memberNames.length];
       const authorId = memberIds[authorName];
       const teamId = teamIds[p.team];
+
+      const dup = await client.query(
+        'SELECT 1 FROM posts WHERE body = $1 AND author_id = $2 LIMIT 1',
+        [p.body, authorId]
+      );
+      if (dup.rows.length > 0) {
+        console.log(`Skipping duplicate post by ${authorName}`);
+        continue;
+      }
 
       const postRes = await client.query(
         `INSERT INTO posts (author_id, team_id, category, body, status, reviewed_by, reviewed_at)
