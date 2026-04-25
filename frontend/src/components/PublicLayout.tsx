@@ -26,12 +26,6 @@ const PublicLayout = () => {
                 Feed
               </Link>
               <Link
-                to="/projects"
-                className="text-sm font-medium text-gray-600 hover:text-forest-600"
-              >
-                Projects
-              </Link>
-              <Link
                 to="/teams"
                 className="text-sm font-medium text-gray-600 hover:text-forest-600"
               >

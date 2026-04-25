@@ -3,15 +3,17 @@ import { useParams, Link } from 'react-router-dom'
 import { CalendarIcon, AcademicCapIcon, BuildingLibraryIcon, LinkIcon, CheckIcon } from '@heroicons/react/24/outline'
 import { useAuth } from '../auth/AuthContext'
 import profileService, { MemberProfile } from '../services/profileService'
-import { Post } from '../services/api'
+import achievementService from '../services/achievementService'
+import { Post, Achievement } from '../services/api'
 import PostCard from '../feed/PostCard'
+import AchievementsList from './AchievementsList'
 import Avatar from '../components/Avatar'
 import Badge from '../components/Badge'
 import Button from '../components/Button'
 import Card from '../components/Card'
 import Spinner from '../components/Spinner'
 
-type Tab = 'posts' | 'tagged'
+type Tab = 'posts' | 'achievements'
 
 const PublicProfilePage = () => {
   const { uuid } = useParams<{ uuid: string }>()
@@ -19,6 +21,7 @@ const PublicProfilePage = () => {
 
   const [profile, setProfile] = useState<MemberProfile | null>(null)
   const [posts, setPosts] = useState<Post[]>([])
+  const [achievements, setAchievements] = useState<Achievement[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('posts')
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingPosts, setIsLoadingPosts] = useState(false)
@@ -47,38 +50,42 @@ const PublicProfilePage = () => {
   }, [uuid])
 
   useEffect(() => {
-    const fetchPosts = async () => {
+    const fetchContent = async () => {
       if (!uuid) return
       setIsLoadingPosts(true)
 
       try {
-        const result = activeTab === 'posts'
-          ? await profileService.getMemberPosts(uuid, { page: 1, limit: 20 })
-          : await profileService.getTaggedPosts(uuid, { page: 1, limit: 20 })
-
-        if (result.success) {
-          setPosts(result.data)
-          setHasMore(result.pagination.hasNextPage)
-          setPage(1)
+        if (activeTab === 'achievements') {
+          const result = await achievementService.getMemberAchievements(uuid, { page: 1, limit: 20 })
+          if (result.success) {
+            setAchievements(result.data)
+            setHasMore(result.pagination.hasNextPage)
+            setPage(1)
+          }
+        } else {
+          const result = await profileService.getMemberPosts(uuid, { page: 1, limit: 20 })
+          if (result.success) {
+            setPosts(result.data)
+            setHasMore(result.pagination.hasNextPage)
+            setPage(1)
+          }
         }
       } catch (error) {
-        console.error('Failed to fetch posts:', error)
+        console.error('Failed to fetch content:', error)
       } finally {
         setIsLoadingPosts(false)
       }
     }
 
-    fetchPosts()
+    fetchContent()
   }, [uuid, activeTab])
 
   const loadMorePosts = async () => {
-    if (!uuid || !hasMore) return
+    if (!uuid || !hasMore || activeTab !== 'posts') return
 
     const nextPage = page + 1
     try {
-      const result = activeTab === 'posts'
-        ? await profileService.getMemberPosts(uuid, { page: nextPage, limit: 20 })
-        : await profileService.getTaggedPosts(uuid, { page: nextPage, limit: 20 })
+      const result = await profileService.getMemberPosts(uuid, { page: nextPage, limit: 20 })
 
       if (result.success) {
         setPosts(prev => [...prev, ...result.data])
@@ -220,10 +227,6 @@ const PublicProfilePage = () => {
                   <span className="font-semibold text-gray-900">{profile.postCount || 0}</span>
                   <span className="text-gray-500 ml-1">Posts</span>
                 </div>
-                <div>
-                  <span className="font-semibold text-gray-900">{profile.taggedCount || 0}</span>
-                  <span className="text-gray-500 ml-1">Tagged</span>
-                </div>
               </div>
 
               {/* Action buttons */}
@@ -272,34 +275,47 @@ const PublicProfilePage = () => {
           Posts
         </button>
         <button
-          onClick={() => setActiveTab('tagged')}
+          onClick={() => setActiveTab('achievements')}
           className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-            activeTab === 'tagged'
+            activeTab === 'achievements'
               ? 'border-forest-500 text-forest-600'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          Tagged
+          Achievements
         </button>
       </div>
 
-      {/* Posts */}
-      {isLoadingPosts ? (
+      {/* Content */}
+      {activeTab === 'achievements' ? (
+        <AchievementsList
+          achievements={achievements}
+          isLoading={isLoadingPosts}
+          isOwn={false}
+          profileName={profile.fullName}
+          onRefresh={async () => {
+            if (!uuid) return
+            try {
+              const result = await achievementService.getMemberAchievements(uuid, { page: 1, limit: 20 })
+              if (result.success) {
+                setAchievements(result.data)
+              }
+            } catch (error) {
+              console.error('Failed to refresh achievements:', error)
+            }
+          }}
+        />
+      ) : isLoadingPosts ? (
         <div className="flex justify-center py-12">
           <Spinner size="lg" />
         </div>
       ) : posts.length === 0 ? (
         <Card>
           <Card.Body className="text-center py-12">
-            <div className="text-4xl mb-4">{activeTab === 'posts' ? '\u{1F4DD}' : '\u{1F3F7}'}</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {activeTab === 'posts' ? 'No posts yet' : 'No tagged posts'}
-            </h3>
+            <div className="text-4xl mb-4">{'\u{1F4DD}'}</div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No posts yet</h3>
             <p className="text-gray-500">
-              {activeTab === 'posts'
-                ? `${profile.fullName} hasn't posted anything yet.`
-                : `${profile.fullName} hasn't been tagged in any posts.`
-              }
+              {profile.fullName} hasn't posted anything yet.
             </p>
           </Card.Body>
         </Card>
