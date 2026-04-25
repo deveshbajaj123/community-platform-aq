@@ -524,7 +524,7 @@ const rejectTeamPost = asyncHandler(async (req, res) => {
  */
 const createTeamPost = asyncHandler(async (req, res) => {
   const { uuid } = req.params;
-  const { category, body, taggedMemberIds } = req.body;
+  const { category, body, taggedMemberIds, imageUrls } = req.body;
 
   // Validate required fields
   if (!body || !body.trim()) {
@@ -594,7 +594,8 @@ const createTeamPost = asyncHandler(async (req, res) => {
     category: postCategory,
     body: body.trim(),
     status,
-    taggedMemberIds: taggedMemberIds || []
+    taggedMemberIds: taggedMemberIds || [],
+    imageUrls: Array.isArray(imageUrls) ? imageUrls : []
   });
 
   // Audit log

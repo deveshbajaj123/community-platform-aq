@@ -11,7 +11,6 @@ import Card from '../components/Card'
 import Modal from '../components/Modal'
 import Spinner from '../components/Spinner'
 import { getCategoryInfo } from './CategoryFilter'
-import TaggedMembersDisplay from './TaggedMembersDisplay'
 
 interface Liker {
   memberId: number
@@ -139,7 +138,22 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
     return date.toLocaleDateString()
   }
 
-  const hasTaggedMembers = post.taggedMembers && post.taggedMembers.length > 0
+  // All participants — author and tagged members are equal
+  const participants = [
+    {
+      uuid: post.authorUuid,
+      fullName: post.authorName,
+      avatarUrl: post.authorAvatar,
+    },
+    ...(post.taggedMembers || []).map(m => ({
+      uuid: m.uuid,
+      fullName: m.fullName,
+      avatarUrl: m.avatarUrl,
+    })),
+  ]
+  const displayedAvatars = participants.slice(0, 3)
+  const displayedNames = participants.slice(0, 3)
+  const remainingCount = participants.length - 3
 
   return (
     <Card className="animate-fade-in">
@@ -147,55 +161,51 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
         {/* Header */}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center space-x-3 flex-1 min-w-0">
-            {hasTaggedMembers ? (
-              /* Show tagged members at top when there are tags */
-              <div className="flex-1 min-w-0">
-                <TaggedMembersDisplay
-                  members={post.taggedMembers!}
-                  getProfileLink={getProfileLink}
-                  showAsHeader
-                />
-                <div className="flex items-center gap-2 text-sm text-gray-500 mt-1.5">
-                  <Badge variant="default" size="sm">
-                    {categoryInfo.emoji} {categoryInfo.label}
-                  </Badge>
-                  {post.teamName && (
-                    <Link to={`/teams/${post.teamUuid}`}>
-                      <Badge variant="forest" size="sm">{post.teamName}</Badge>
-                    </Link>
-                  )}
-                </div>
-              </div>
-            ) : (
-              /* Show author when no tagged members */
-              <>
-                <Link to={getProfileLink(post.authorUuid)}>
+            {/* Overlapping participant avatars */}
+            <div className="flex -space-x-2 flex-shrink-0">
+              {displayedAvatars.map(p => (
+                <Link
+                  key={p.uuid}
+                  to={getProfileLink(p.uuid)}
+                  className="relative inline-block"
+                >
                   <Avatar
-                    src={post.authorAvatar}
-                    name={post.authorName}
+                    src={p.avatarUrl}
+                    name={p.fullName}
                     size="md"
+                    className="ring-2 ring-white"
                   />
                 </Link>
-                <div>
-                  <Link
-                    to={getProfileLink(post.authorUuid)}
-                    className="font-medium text-gray-900 hover:text-forest-600"
-                  >
-                    {post.authorName}
+              ))}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-gray-900">
+                {displayedNames.map((p, i) => (
+                  <span key={p.uuid}>
+                    <Link
+                      to={getProfileLink(p.uuid)}
+                      className="hover:text-forest-600"
+                    >
+                      {p.fullName}
+                    </Link>
+                    {i < displayedNames.length - 1 && ', '}
+                  </span>
+                ))}
+                {remainingCount > 0 && (
+                  <span className="text-gray-500 font-normal"> +{remainingCount} more</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
+                <Badge variant="default" size="sm">
+                  {categoryInfo.emoji} {categoryInfo.label}
+                </Badge>
+                {post.teamName && (
+                  <Link to={`/teams/${post.teamUuid}`}>
+                    <Badge variant="forest" size="sm">{post.teamName}</Badge>
                   </Link>
-                  <div className="flex items-center gap-2 text-sm text-gray-500 mt-0.5">
-                    <Badge variant="default" size="sm">
-                      {categoryInfo.emoji} {categoryInfo.label}
-                    </Badge>
-                    {post.teamName && (
-                      <Link to={`/teams/${post.teamUuid}`}>
-                        <Badge variant="forest" size="sm">{post.teamName}</Badge>
-                      </Link>
-                    )}
-                  </div>
-                </div>
-              </>
-            )}
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Menu */}
@@ -238,32 +248,30 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
 
         {/* Images */}
         {post.images && post.images.length > 0 && (
-          <div className={`mb-4 ${
-            post.images.length === 1
-              ? ''
-              : post.images.length === 2
-                ? 'grid grid-cols-2 gap-2'
-                : post.images.length === 3
-                  ? 'grid grid-cols-2 gap-2'
-                  : 'grid grid-cols-2 gap-2'
-          }`}>
+          <div className="mb-4">
             {post.images.length === 1 && (
-              <img
-                src={post.images[0].blobUrl}
-                alt=""
-                className="w-full rounded-lg object-cover max-h-[500px]"
-              />
+              <div className="flex justify-center rounded-lg bg-cream-100 overflow-hidden">
+                <img
+                  src={post.images[0].blobUrl}
+                  alt=""
+                  className="max-h-[560px] w-auto max-w-full object-contain"
+                />
+              </div>
             )}
-            {post.images.length === 2 && post.images.map((img) => (
-              <img
-                key={img.blobUrl}
-                src={img.blobUrl}
-                alt=""
-                className="w-full h-64 rounded-lg object-cover"
-              />
-            ))}
+            {post.images.length === 2 && (
+              <div className="grid grid-cols-2 gap-2 mx-auto max-w-3xl">
+                {post.images.map((img) => (
+                  <img
+                    key={img.blobUrl}
+                    src={img.blobUrl}
+                    alt=""
+                    className="w-full h-64 rounded-lg object-cover"
+                  />
+                ))}
+              </div>
+            )}
             {post.images.length === 3 && (
-              <>
+              <div className="grid grid-cols-2 gap-2 mx-auto max-w-3xl">
                 <img
                   key={post.images[0].blobUrl}
                   src={post.images[0].blobUrl}
@@ -282,16 +290,20 @@ const PostCard = ({ post, onDelete, isPublicView = false }: PostCardProps) => {
                   alt=""
                   className="w-full h-[156px] rounded-lg object-cover"
                 />
-              </>
+              </div>
             )}
-            {post.images.length >= 4 && post.images.slice(0, 4).map((img) => (
-              <img
-                key={img.blobUrl}
-                src={img.blobUrl}
-                alt=""
-                className="w-full h-48 rounded-lg object-cover"
-              />
-            ))}
+            {post.images.length >= 4 && (
+              <div className="grid grid-cols-2 gap-2 mx-auto max-w-3xl">
+                {post.images.slice(0, 4).map((img) => (
+                  <img
+                    key={img.blobUrl}
+                    src={img.blobUrl}
+                    alt=""
+                    className="w-full h-48 rounded-lg object-cover"
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
 

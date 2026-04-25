@@ -201,9 +201,14 @@ const Post = {
       ? `p.status IN ('published', 'pending_review')`
       : `p.status = 'published'`;
 
+    // Include posts the member authored OR is tagged in — tagged members are equal participants
+    const involvementCondition = `(p.author_id = $1 OR EXISTS (
+      SELECT 1 FROM post_tags pt WHERE pt.post_id = p.post_id AND pt.tagged_member_id = $1
+    ))`;
+
     const countResult = await pool.query(
       `SELECT COUNT(*) FROM posts p
-       WHERE p.author_id = $1 AND ${statusCondition}`,
+       WHERE ${involvementCondition} AND ${statusCondition}`,
       [authorId]
     );
     const total = parseInt(countResult.rows[0].count);
@@ -219,7 +224,7 @@ const Post = {
        FROM posts p
        JOIN members m ON p.author_id = m.member_id
        LEFT JOIN teams t ON p.team_id = t.team_id
-       WHERE p.author_id = $1 AND ${statusCondition}
+       WHERE ${involvementCondition} AND ${statusCondition}
        ORDER BY p.created_at DESC
        LIMIT $2 OFFSET $3`,
       [authorId, limit, offset]
@@ -616,7 +621,7 @@ const Post = {
   /**
    * Create a post linked to a team
    */
-  async createTeamPost({ authorId, teamId, category, body, status = 'pending_review', taggedMemberIds = [] }) {
+  async createTeamPost({ authorId, teamId, category, body, status = 'pending_review', taggedMemberIds = [], imageUrls = [] }) {
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -637,6 +642,21 @@ const Post = {
           `INSERT INTO post_tags (post_id, tagged_member_id) VALUES ${tagValues}
            ON CONFLICT DO NOTHING`,
           [post.post_id, ...taggedMemberIds]
+        );
+      }
+
+      // Add images if any
+      if (imageUrls && imageUrls.length > 0) {
+        const params = [post.post_id];
+        const valuesClauses = imageUrls.map((url, i) => {
+          const safeUrl = String(url || '').slice(0, 2048);
+          params.push(safeUrl, i);
+          return `($1, $${params.length - 1}, '', 0, $${params.length})`;
+        });
+        await client.query(
+          `INSERT INTO post_images (post_id, blob_url, blob_name, file_size, display_order)
+           VALUES ${valuesClauses.join(', ')}`,
+          params
         );
       }
 

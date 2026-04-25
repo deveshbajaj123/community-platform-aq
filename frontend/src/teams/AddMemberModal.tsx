@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { XMarkIcon } from '@heroicons/react/24/outline'
 import Modal from '../components/Modal'
 import Input from '../components/Input'
@@ -42,34 +42,39 @@ const AddMemberModal = ({ isOpen, onClose, onSuccess, teamUuid, existingMemberId
 
   const debouncedSearch = useDebounce(searchQuery, 300)
 
-  const selectedMemberIds = selectedMembers.map(m => m.memberId)
-
-  const searchMembers = useCallback(async (query: string) => {
-    if (query.length < 2) {
-      setSearchResults([])
-      return
-    }
-    setIsSearching(true)
-    try {
-      const response = await api.get('/search', { params: { q: query, type: 'people', limit: 10 } })
-      if (response.data.success) {
-        const filtered = response.data.data.results.people.filter(
-          (m: SearchedMember) =>
-            !existingMemberIds.includes(m.memberId) &&
-            !selectedMemberIds.includes(m.memberId)
-        )
-        setSearchResults(filtered)
-      }
-    } catch (err) {
-      console.error('Failed to search members:', err)
-    } finally {
-      setIsSearching(false)
-    }
-  }, [existingMemberIds, selectedMemberIds])
+  const existingIdsRef = useRef(existingMemberIds)
+  const selectedIdsRef = useRef<number[]>([])
+  existingIdsRef.current = existingMemberIds
+  selectedIdsRef.current = selectedMembers.map(m => m.memberId)
 
   useEffect(() => {
-    searchMembers(debouncedSearch)
-  }, [debouncedSearch, searchMembers])
+    let cancelled = false
+    const run = async () => {
+      if (debouncedSearch.length < 2) {
+        setSearchResults(prev => (prev.length === 0 ? prev : []))
+        return
+      }
+      setIsSearching(true)
+      try {
+        const response = await api.get('/search', { params: { q: debouncedSearch, type: 'people', limit: 10 } })
+        if (cancelled) return
+        if (response.data.success) {
+          const filtered = response.data.data.results.people.filter(
+            (m: SearchedMember) =>
+              !existingIdsRef.current.includes(m.memberId) &&
+              !selectedIdsRef.current.includes(m.memberId)
+          )
+          setSearchResults(filtered)
+        }
+      } catch (err) {
+        console.error('Failed to search members:', err)
+      } finally {
+        if (!cancelled) setIsSearching(false)
+      }
+    }
+    run()
+    return () => { cancelled = true }
+  }, [debouncedSearch])
 
   const handleAddToSelection = (member: SearchedMember) => {
     setSelectedMembers(prev => [...prev, { ...member, teamRole: 'member' }])

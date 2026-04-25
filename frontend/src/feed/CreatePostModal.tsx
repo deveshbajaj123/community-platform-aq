@@ -179,6 +179,14 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated }: CreatePostModalProp
       setError('Please write something')
       return
     }
+    if (body.trim().length < 10) {
+      setError('Post must be at least 10 characters long')
+      return
+    }
+    if (body.trim().length > 1000) {
+      setError('Post must be 1000 characters or fewer')
+      return
+    }
 
     setIsSubmitting(true)
     setError(null)
@@ -205,7 +213,7 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated }: CreatePostModalProp
           onPostCreated()
           handleClose()
         } else {
-          setError('Failed to create post')
+          setError(result.message || 'Failed to create post')
         }
       } else {
         // Regular post with optional tagged people
@@ -224,8 +232,8 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated }: CreatePostModalProp
           setError('Failed to create post')
         }
       }
-    } catch {
-      setError('Failed to create post. Please try again.')
+    } catch (err: any) {
+      setError(err?.response?.data?.message || 'Failed to create post. Please try again.')
     } finally {
       setIsSubmitting(false)
     }

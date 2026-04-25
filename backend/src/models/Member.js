@@ -260,16 +260,17 @@ const Member = {
       `SELECT m.member_id, m.uuid, m.full_name, m.avatar_url, m.class_grade, m.bio, m.role, m.created_at,
               s.school_id, s.uuid as school_uuid, s.name as school_name, s.logo_url as school_logo,
               c.class_id, c.uuid as class_uuid, c.name as class_name,
-              COUNT(DISTINCT p.post_id) as post_count,
+              (SELECT COUNT(DISTINCT p.post_id) FROM posts p
+                LEFT JOIN post_tags pt ON pt.post_id = p.post_id
+                WHERE (p.author_id = m.member_id OR pt.tagged_member_id = m.member_id)
+                  AND p.status = 'published') as post_count,
               (SELECT COUNT(*) FROM post_tags pt
                JOIN posts p2 ON pt.post_id = p2.post_id
                WHERE pt.tagged_member_id = m.member_id AND p2.status = 'published') as tagged_count
        FROM members m
        LEFT JOIN schools s ON m.school_id = s.school_id
        LEFT JOIN classes c ON m.class_id = c.class_id
-       LEFT JOIN posts p ON m.member_id = p.author_id AND p.status = 'published'
-       WHERE m.uuid = $1 AND m.status = 'active' AND m.is_active = TRUE
-       GROUP BY m.member_id, s.school_id, c.class_id`,
+       WHERE m.uuid = $1 AND m.status = 'active' AND m.is_active = TRUE`,
       [uuid]
     );
     return result.rows[0] ? transformKeys(result.rows[0]) : null;
