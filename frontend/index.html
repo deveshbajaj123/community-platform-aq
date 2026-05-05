@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Themed favicons for light/dark mode -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Dynamic theme-color — JS in AQNav updates this -->
+    <meta name="theme-color" id="aq-theme-color" content="#f2ede3" />
+    <meta name="description" content="AquaTerra — a student-run NGO doing welfare, events, labs, and content work across India." />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- OG / social preview -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="AquaTerra" />
+    <meta property="og:description" content="AquaTerra — started as an NGO. it got out of hand." />
+    <meta property="og:image" content="/og-image.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AquaTerra" />
+    <meta name="twitter:description" content="AquaTerra — started as an NGO. it got out of hand." />
+    <title>AquaTerra</title>
+    <style>
+@font-face {
+  font-family: 'NeutralFace';
+  src: url('/fonts/NeutralFace-Bold.woff2') format('woff2');
+  font-weight: 700; font-display: swap;
+}
+@font-face {
+  font-family: 'NeutralFace';
+  src: url('/fonts/NeutralFace-Regular.woff2') format('woff2');
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: 'InstrumentSerif';
+  src: url('/fonts/InstrumentSerif-Regular.woff2') format('woff2');
+  font-weight: 400; font-display: swap;
+}
+@font-face {
+  font-family: 'InstrumentSerif';
+  src: url('/fonts/InstrumentSerif-Italic.woff2') format('woff2');
+  font-style: italic; font-weight: 400; font-display: swap;
+}
+/* Prevent FOUC */
+html { background: #f2ede3; }
+html[data-theme="dark"] { background: #0c0c0a; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

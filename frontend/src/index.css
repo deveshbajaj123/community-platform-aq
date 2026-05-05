@@ -1,0 +1,30 @@
+/* AquaTerra — utility overrides (no Tailwind, no body conflicts) */
+
+/* Custom keyframes for utility classes */
+@keyframes aq-fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes aq-slide-up {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: none; }
+}
+/* Wire up the Tailwind-style class used by Modal.tsx */
+.animate-slide-up { animation: aq-slide-up 0.22s cubic-bezier(0.2,0,0,1); }
+.animate-fade-in { animation: aq-fade-in 0.22s cubic-bezier(0.2,0,0,1); }
+@keyframes aq-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}
+
+/* Skeleton loader */
+.skeleton {
+  background: var(--surface-2);
+  border-radius: var(--r-sm);
+  animation: aq-pulse 2s ease-in-out infinite;
+}
+
+/* Card hover lift — explicit properties (not transition: all) */
+.card-hover { transition: transform 0.2s cubic-bezier(0.2,0,0,1), box-shadow 0.2s cubic-bezier(0.2,0,0,1); }
+.card-hover:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+.card-hover:active { transform: scale(0.98); }

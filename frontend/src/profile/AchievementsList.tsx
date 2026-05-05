@@ -1,0 +1,190 @@
+import { useState } from 'react'
+import { Achievement } from '../services/api'
+import Card from '../components/Card'
+import Badge from '../components/Badge'
+import Button from '../components/Button'
+import Spinner from '../components/Spinner'
+import AddAchievementModal from './AddAchievementModal'
+import EditAchievementModal from './EditAchievementModal'
+import { TrashIcon, PencilIcon } from '@heroicons/react/24/outline'
+import achievementService from '../services/achievementService'
+
+interface AchievementsListProps {
+  achievements: Achievement[]
+  isLoading: boolean
+  isOwn: boolean
+  profileName: string
+  onRefresh: () => void
+}
+
+const ACHIEVEMENT_TYPE_INFO: Record<string, { emoji: string; label: string; color: string }> = {
+  leadership: { emoji: '👑', label: 'Leadership', color: 'orange' },
+  academic: { emoji: '📚', label: 'Academic', color: 'forest' },
+  competition: { emoji: '🏆', label: 'Competition', color: 'success' },
+  personal_project: { emoji: '💡', label: 'Personal Project', color: 'info' },
+  other: { emoji: '🌟', label: 'Other', color: 'default' },
+}
+
+const formatDateRange = (startDate: string, endDate?: string | null): string => {
+  const fmt = (d: string) =>
+    new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short' })
+  const end = endDate ? fmt(endDate) : 'Present'
+  return `${fmt(startDate)} – ${end}`
+}
+
+const AchievementsList = ({ achievements, isLoading, isOwn, profileName, onRefresh }: AchievementsListProps) => {
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false)
+  const [editingAchievement, setEditingAchievement] = useState<Achievement | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+
+  const handleDelete = async (uuid: string) => {
+    if (!confirm('Are you sure you want to delete this achievement?')) return
+
+    setDeletingId(uuid)
+    try {
+      await achievementService.deleteAchievement(uuid)
+      onRefresh()
+    } catch (error) {
+      console.error('Failed to delete achievement:', error)
+      alert('Failed to delete achievement')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner size="lg" />
+      </div>
+    )
+  }
+
+  if (achievements.length === 0) {
+    return (
+      <>
+        <Card>
+          <Card.Body className="text-center py-12">
+            <div className="text-6xl mb-4">🏅</div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No achievements yet
+            </h3>
+            <p className="text-gray-500 mb-4">
+              {isOwn
+                ? "You haven't added any achievements yet. Showcase your accomplishments!"
+                : `${profileName} hasn't added any achievements yet.`}
+            </p>
+            {isOwn && (
+              <Button onClick={() => setIsAddModalOpen(true)}>
+                Add Achievement
+              </Button>
+            )}
+          </Card.Body>
+        </Card>
+
+        {isOwn && (
+          <AddAchievementModal
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)}
+            onAchievementCreated={onRefresh}
+          />
+        )}
+      </>
+    )
+  }
+
+  return (
+    <>
+      {isOwn && (
+        <div className="mb-4">
+          <Button onClick={() => setIsAddModalOpen(true)}>
+            Add Achievement
+          </Button>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {achievements.map(achievement => {
+          const typeInfo = ACHIEVEMENT_TYPE_INFO[achievement.achievementType] ?? ACHIEVEMENT_TYPE_INFO.other
+
+          return (
+            <Card key={achievement.achievementId} hover>
+              <Card.Body className="relative">
+                {/* Type Badge */}
+                <div className="flex items-center justify-between mb-3">
+                  <Badge variant={typeInfo.color as any} size="sm">
+                    {typeInfo.emoji} {typeInfo.label}
+                  </Badge>
+
+                  {isOwn && (
+                    <div className="-my-2 -mr-2 flex gap-1">
+                      <button
+                        onClick={() => setEditingAchievement(achievement)}
+                        aria-label="Edit achievement"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:text-forest-600 hover:bg-gray-50 [transition:background-color_120ms,color_120ms,transform_120ms] active:scale-[0.96]"
+                      >
+                        <PencilIcon className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(achievement.uuid)}
+                        disabled={deletingId === achievement.uuid}
+                        aria-label="Delete achievement"
+                        className="inline-flex h-10 w-10 items-center justify-center rounded-md text-gray-400 hover:text-red-600 hover:bg-gray-50 disabled:opacity-50 disabled:active:scale-100 [transition:background-color_120ms,color_120ms,transform_120ms] active:scale-[0.96]"
+                      >
+                        <TrashIcon className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Proof Image — inner radius (rounded-md=6px) is concentric with card rounded-xl=12px minus ~5px effective border padding */}
+                {achievement.proofUrl && (
+                  <img
+                    src={achievement.proofUrl}
+                    alt={achievement.title}
+                    className="w-full h-32 object-cover rounded-md mb-3"
+                  />
+                )}
+
+                {/* Title & Description */}
+                <h3 className="font-semibold text-gray-900 mb-1">
+                  {achievement.title}
+                </h3>
+                {achievement.description && (
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">
+                    {achievement.description}
+                  </p>
+                )}
+
+                {/* Date range */}
+                <p className="text-xs text-gray-500">
+                  {formatDateRange(achievement.achievementDate, achievement.achievementEndDate)}
+                </p>
+              </Card.Body>
+            </Card>
+          )
+        })}
+      </div>
+
+      {isOwn && (
+        <>
+          <AddAchievementModal
+            isOpen={isAddModalOpen}
+            onClose={() => setIsAddModalOpen(false)}
+            onAchievementCreated={onRefresh}
+          />
+          {editingAchievement && (
+            <EditAchievementModal
+              isOpen={!!editingAchievement}
+              onClose={() => setEditingAchievement(null)}
+              achievement={editingAchievement}
+              onAchievementUpdated={onRefresh}
+            />
+          )}
+        </>
+      )}
+    </>
+  )
+}
+
+export default AchievementsList
