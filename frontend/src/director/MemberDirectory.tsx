@@ -8,7 +8,7 @@ const initials = (name: string) => (name || 'U').split(' ').map(n => n[0]).join(
 
 const MemberDirectory = () => {
   const { member: currentMember } = useAuth()
-  const isSuperAdmin = currentMember?.isSuperAdmin || false
+  const isSuperAdmin = currentMember?.role === 'super_admin'
 
   const [members, setMembers] = useState<DirectoryMember[]>([])
   const [isLoading, setIsLoading] = useState(true)

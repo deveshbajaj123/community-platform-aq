@@ -3,7 +3,7 @@ import feedService, { CreatePostData } from '../services/feedService'
 import teamService, { Team, TeamMember } from '../services/teamService'
 import { useAuth } from '../auth/AuthContext'
 import { useDebounce } from '../hooks/useDebounce'
-import api from '../services/api'
+import { feedService as feedServiceForSearch } from '../services/feedService'
 import { DEPT_COLORS } from '../lib/supabase'
 
 interface CreatePostModalProps {
@@ -69,7 +69,7 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated }: CreatePostModalProp
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [isOpen, body, category, selectedTeamUuid, selectedTeam])
+  }, [isOpen, body, category, selectedTeamUuid])
 
   useEffect(() => {
     if (!isOpen) return
@@ -97,10 +97,10 @@ const CreatePostModal = ({ isOpen, onClose, onPostCreated }: CreatePostModalProp
     if (query.length < 2) { setTagResults([]); return }
     setTagSearching(true)
     try {
-      const response = await api.get('/search', { params: { q: query, type: 'people', limit: 10 } })
-      if (response.data.success) {
+      const response = await feedServiceForSearch.searchMembers(query)
+      if (response.success) {
         const alreadyTaggedIds = taggedPeople.map(p => p.memberId)
-        setTagResults(response.data.data.results.people.filter(
+        setTagResults(response.data.members.filter(
           (m: SearchedMember) => !alreadyTaggedIds.includes(m.memberId) && m.uuid !== member?.uuid
         ))
       }

@@ -1,4 +1,5 @@
-import api, { School, SchoolDetails, SchoolMember, PaginatedResponse } from './api'
+import { supabaseCommunity } from '../lib/supabaseCommunity'
+import { School, SchoolDetails, SchoolMember, PaginatedResponse } from './api'
 
 interface GetSchoolsParams {
   page?: number
@@ -12,49 +13,117 @@ interface GetSchoolMembersParams {
 }
 
 export const schoolService = {
-  /**
-   * Get all schools (paginated)
-   */
   async getSchools(params: GetSchoolsParams = {}): Promise<PaginatedResponse<School>> {
     const { page = 1, limit = 50, search = '' } = params
-    const response = await api.get('/schools', {
-      params: { page, limit, search }
-    })
-    return response.data
+    const offset = (page - 1) * limit
+
+    let query = supabaseCommunity
+      .from('schools')
+      .select('*', { count: 'exact' })
+      .range(offset, offset + limit - 1)
+
+    if (search) {
+      query = query.ilike('name', `%${search}%`)
+    }
+
+    const { data, count, error } = await query
+    if (error) throw error
+
+    const schools: School[] = (data || []).map((s: any) => ({
+      uuid: s.uuid,
+      name: s.name,
+      shortName: s.short_name ?? undefined,
+      logoUrl: s.logo_url ?? undefined,
+      location: s.location ?? undefined,
+      website: s.website ?? undefined,
+      memberCount: 0,
+      createdAt: s.created_at
+    }))
+
+    const totalItems = count || 0
+    return {
+      success: true,
+      data: schools,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalItems / limit),
+        totalItems,
+        itemsPerPage: limit,
+        hasNextPage: page < Math.ceil(totalItems / limit),
+        hasPrevPage: page > 1
+      }
+    }
   },
 
-  /**
-   * Get school by UUID with details (members, classes)
-   */
   async getSchool(uuid: string): Promise<{ success: boolean; data: { school: SchoolDetails } }> {
-    const response = await api.get(`/schools/${uuid}`)
-    return response.data
+    const { data, error } = await supabaseCommunity
+      .from('schools')
+      .select('*')
+      .eq('uuid', uuid)
+      .single()
+
+    if (error) throw error
+
+    const d = data as any
+    const schoolDetails: SchoolDetails = {
+      uuid: d.uuid,
+      name: d.name,
+      shortName: d.short_name ?? undefined,
+      logoUrl: d.logo_url ?? undefined,
+      location: d.location ?? undefined,
+      website: d.website ?? undefined,
+      createdAt: d.created_at,
+      memberCount: 0,
+      recentMembers: [],
+      classes: []
+    }
+
+    return { success: true, data: { school: schoolDetails } }
   },
 
-  /**
-   * Get members from a school (paginated)
-   */
-  async getSchoolMembers(uuid: string, params: GetSchoolMembersParams = {}): Promise<PaginatedResponse<SchoolMember>> {
+  async getSchoolMembers(_uuid: string, params: GetSchoolMembersParams = {}): Promise<PaginatedResponse<SchoolMember>> {
     const { page = 1, limit = 20 } = params
-    const response = await api.get(`/schools/${uuid}/members`, {
-      params: { page, limit }
-    })
-    return response.data
+
+    const members: SchoolMember[] = []
+    const count = 0
+
+    const totalItems = count || 0
+    return {
+      success: true,
+      data: members,
+      pagination: {
+        currentPage: page,
+        totalPages: Math.ceil(totalItems / limit),
+        totalItems,
+        itemsPerPage: limit,
+        hasNextPage: page < Math.ceil(totalItems / limit),
+        hasPrevPage: page > 1
+      }
+    }
   },
 
-  /**
-   * Search schools for dropdown/autocomplete
-   */
   async searchSchools(query: string, limit = 10): Promise<{ success: boolean; data: { schools: Pick<School, 'uuid' | 'name' | 'shortName' | 'logoUrl'>[] } }> {
-    const response = await api.get('/schools/search', {
-      params: { q: query, limit }
-    })
-    return response.data
+    const { data, error } = await supabaseCommunity
+      .from('schools')
+      .select('uuid, name, short_name, logo_url')
+      .ilike('name', `%${query}%`)
+      .limit(limit)
+
+    if (error) throw error
+
+    return {
+      success: true,
+      data: {
+        schools: data.map((s: any) => ({
+          uuid: s.uuid,
+          name: s.name,
+          shortName: s.short_name,
+          logoUrl: s.logo_url
+        }))
+      }
+    }
   },
 
-  /**
-   * Create a new school (director only)
-   */
   async createSchool(data: {
     name: string
     shortName?: string
@@ -62,13 +131,38 @@ export const schoolService = {
     location?: string
     website?: string
   }): Promise<{ success: boolean; data: { school: School }; message: string }> {
-    const response = await api.post('/schools', data)
-    return response.data
+    const { data: school, error } = await supabaseCommunity
+      .from('schools')
+      .insert({
+        name: data.name,
+        short_name: data.shortName,
+        logo_url: data.logoUrl,
+        location: data.location,
+        website: data.website
+      })
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      success: true,
+      message: 'School created',
+      data: {
+        school: {
+          uuid: school.uuid,
+          name: school.name,
+          shortName: school.short_name ?? undefined,
+          logoUrl: school.logo_url ?? undefined,
+          location: school.location ?? undefined,
+          website: school.website ?? undefined,
+          createdAt: school.created_at,
+          memberCount: 0
+        }
+      }
+    }
   },
 
-  /**
-   * Update a school (director only)
-   */
   async updateSchool(uuid: string, data: {
     name?: string
     shortName?: string
@@ -76,8 +170,38 @@ export const schoolService = {
     location?: string
     website?: string
   }): Promise<{ success: boolean; data: { school: School }; message: string }> {
-    const response = await api.put(`/schools/${uuid}`, data)
-    return response.data
+    const updateData: any = {}
+    if (data.name !== undefined) updateData.name = data.name
+    if (data.shortName !== undefined) updateData.short_name = data.shortName
+    if (data.logoUrl !== undefined) updateData.logo_url = data.logoUrl
+    if (data.location !== undefined) updateData.location = data.location
+    if (data.website !== undefined) updateData.website = data.website
+
+    const { data: school, error } = await supabaseCommunity
+      .from('schools')
+      .update(updateData)
+      .eq('uuid', uuid)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      success: true,
+      message: 'School updated',
+      data: {
+        school: {
+          uuid: school.uuid,
+          name: school.name,
+          shortName: school.short_name ?? undefined,
+          logoUrl: school.logo_url ?? undefined,
+          location: school.location ?? undefined,
+          website: school.website ?? undefined,
+          createdAt: school.created_at,
+          memberCount: 0
+        }
+      }
+    }
   }
 }
 

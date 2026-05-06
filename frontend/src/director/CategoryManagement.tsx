@@ -15,7 +15,7 @@ const initials = (name: string) => (name || 'U').split(' ').map(n => n[0]).join(
 
 const CategoryManagement = () => {
   const { member } = useAuth()
-  const isSuperAdmin = member?.isSuperAdmin || false
+  const isSuperAdmin = member?.role === 'super_admin'
 
   const [directors, setDirectors] = useState<Director[]>([])
   const [categories, setCategories] = useState<string[]>([])

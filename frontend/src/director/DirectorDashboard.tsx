@@ -5,7 +5,7 @@ import directorService, { DashboardStats } from '../services/directorService'
 
 const DirectorDashboard = () => {
   const { member } = useAuth()
-  const isSuperAdmin = member?.isSuperAdmin || false
+  const isSuperAdmin = member?.role === 'super_admin'
 
   const [stats, setStats] = useState<DashboardStats | null>(null)
   const [isLoading, setIsLoading] = useState(true)

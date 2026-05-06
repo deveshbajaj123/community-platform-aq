@@ -1,40 +1,15 @@
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react'
-import api, { storage, Member } from '../services/api'
+import { supabaseCommunity } from '../lib/supabaseCommunity'
+import { Database } from '../lib/database.types'
+
+type Member = Database['public']['Tables']['members']['Row']
 
 interface AuthContextType {
   member: Member | null
   isLoading: boolean
   isAuthenticated: boolean
-  login: (googleProfile: GoogleProfile) => Promise<AuthResult>
-  register: (data: RegisterData) => Promise<AuthResult>
   logout: () => Promise<void>
   refreshMember: () => Promise<void>
-}
-
-interface GoogleProfile {
-  googleId: string
-  email: string
-  name: string
-  picture?: string
-  credential?: string // Google ID token for backend verification
-}
-
-interface RegisterData {
-  googleId: string
-  email: string
-  fullName: string
-  avatarUrl?: string
-  classGrade: string
-  phone?: string
-  joinReason: string
-  schoolId?: number
-}
-
-interface AuthResult {
-  success: boolean
-  status?: string
-  message?: string
-  member?: Member
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -42,109 +17,125 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [member, setMember] = useState<Member | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
 
-  // Initialize auth state from storage
+  const fetchMember = useCallback(async (userId: string) => {
+    try {
+      const { data, error } = await supabaseCommunity
+        .from('members')
+        .select('*')
+        .eq('auth_uid', userId)
+        .single()
+
+      if (!error && data) {
+        setMember(data)
+      } else {
+        setMember(null)
+      }
+    } catch (err) {
+      console.error('Error fetching member:', err)
+      setMember(null)
+    }
+  }, [])
+
   useEffect(() => {
-    const initAuth = async () => {
-      const token = storage.getAccessToken()
-      const storedMember = storage.getMember()
+    let mounted = true
 
-      if (token) {
+    const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> => {
+      return Promise.race([
+        p,
+        new Promise<T>((_, reject) =>
+          setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+        ),
+      ])
+    }
+
+    const initSession = async () => {
+      console.log('[Auth] init: calling getSession()')
+      try {
+        const { data: { session } } = await withTimeout(
+          supabaseCommunity.auth.getSession(),
+          3000,
+          'getSession'
+        )
+        if (!mounted) return
+        console.log('[Auth] init: got session', session?.user?.id ? 'user=' + session.user.id : 'null')
+
+        if (session?.user) {
+          try {
+            await withTimeout(fetchMember(session.user.id), 4000, 'fetchMember')
+          } catch (err) {
+            console.error('[Auth] fetchMember failed/timed out:', err)
+            setMember(null)
+          }
+        } else {
+          setMember(null)
+        }
+      } catch (err) {
+        console.error('[Auth] init failed:', err)
         try {
-          const response = await api.get('/auth/me')
-          if (response.data.success) {
-            const memberData = response.data.data.member
-            setMember(memberData)
-            setIsAuthenticated(true)
-            storage.setMember(memberData)
-          }
-        } catch (error) {
-          // If API fails but we have stored member, use that temporarily
-          if (storedMember) {
-            setMember(storedMember)
-            setIsAuthenticated(true)
-          } else {
-            storage.clear()
-          }
+          await supabaseCommunity.auth.signOut()
+        } catch (signOutErr) {
+          console.error('[Auth] signOut cleanup failed:', signOutErr)
+        }
+        if (mounted) setMember(null)
+      } finally {
+        if (mounted) {
+          console.log('[Auth] init: clearing isLoading')
+          setIsLoading(false)
         }
       }
-      setIsLoading(false)
     }
 
-    initAuth()
-  }, [])
+    initSession()
 
-  const login = useCallback(async (googleProfile: GoogleProfile): Promise<AuthResult> => {
-    const response = await api.post('/auth/google', googleProfile)
+    const { data: { subscription } } = supabaseCommunity.auth.onAuthStateChange(async (event, session) => {
+      console.log('[Auth] onAuthStateChange:', event, session?.user?.id || 'no-user')
+      if (event === 'INITIAL_SESSION') return
+      if (!mounted) return
 
-    if (response.data.success) {
-      const { status, accessToken, refreshToken, member: memberData } = response.data.data
-
-      if (status === 'active' && accessToken && memberData) {
-        storage.setTokens(accessToken, refreshToken)
-        storage.setMember(memberData)
-        setMember(memberData)
-        setIsAuthenticated(true)
-        return { success: true, status: 'active', member: memberData }
+      try {
+        if (session?.user) {
+          await withTimeout(fetchMember(session.user.id), 4000, 'fetchMember(event)')
+        } else {
+          setMember(null)
+        }
+      } catch (err) {
+        console.error('[Auth] state-change handler failed:', err)
+        if (mounted) setMember(null)
+      } finally {
+        if (mounted) setIsLoading(false)
       }
+    })
 
-      return { success: true, status, message: response.data.data.message }
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
     }
-
-    return { success: false, message: response.data.message }
-  }, [])
-
-  const register = useCallback(async (data: RegisterData): Promise<AuthResult> => {
-    const response = await api.post('/auth/register', data)
-
-    if (response.data.success) {
-      return {
-        success: true,
-        status: response.data.data.status,
-        message: response.data.data.message
-      }
-    }
-
-    return { success: false, message: response.data.message }
-  }, [])
+  }, [fetchMember])
 
   const logout = useCallback(async () => {
-    try {
-      await api.post('/auth/logout')
-    } catch (error) {
-      // Ignore logout errors
-    } finally {
-      storage.clear()
-      setMember(null)
-      setIsAuthenticated(false)
-    }
+    setMember(null)
+    await supabaseCommunity.auth.signOut()
   }, [])
 
   const refreshMember = useCallback(async () => {
-    try {
-      const response = await api.get('/auth/me')
-      if (response.data.success) {
-        const memberData = response.data.data.member
-        setMember(memberData)
-        storage.setMember(memberData)
-      }
-    } catch (error) {
-      // Ignore errors
+    const { data: { session } } = await supabaseCommunity.auth.getSession()
+    if (session?.user) {
+      await fetchMember(session.user.id)
     }
-  }, [])
+  }, [fetchMember])
 
-  const value = {
-    member,
-    isLoading,
-    isAuthenticated,
-    login,
-    register,
-    logout,
-    refreshMember,
-  }
-
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={{
+      member,
+      isLoading,
+      isAuthenticated: !!member,
+      logout,
+      refreshMember,
+    }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
 export const useAuth = () => {

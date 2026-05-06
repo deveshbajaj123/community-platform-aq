@@ -43,9 +43,6 @@ const SearchResultsList = ({ results, activeFilter }: SearchResultsListProps) =>
                         {person.classGrade && (
                           <p className="text-sm text-gray-500 mt-0.5">{person.classGrade}</p>
                         )}
-                        {person.bio && (
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-2">{person.bio}</p>
-                        )}
                       </div>
                       {person.role === 'director' && (
                         <Badge variant="forest" size="sm">Director</Badge>

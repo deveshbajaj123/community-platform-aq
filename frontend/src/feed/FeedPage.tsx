@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link } from 'react-router-dom'
 import { Post } from '../services/api'
 import feedService from '../services/feedService'
@@ -26,7 +26,6 @@ const FeedPage = () => {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [showScrollTop, setShowScrollTop] = useState(false)
-  const mainRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const onScroll = () => setShowScrollTop(window.scrollY > 400)
@@ -114,9 +113,9 @@ const FeedPage = () => {
           <div className="compose-bar">
             {/* Mini avatar */}
             <div className="aq-avatar" style={{ width: 36, height: 36, fontSize: 13, background: 'var(--accent)', flexShrink: 0, overflow: 'hidden' }}>
-              {member?.avatarUrl
-                ? <img src={member.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
-                : (member?.fullName || 'U').split(' ').map(n => n[0]).join('').slice(0, 2)
+              {member?.avatar_url
+                ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                : (member?.full_name || 'U').split(' ').map(n => n[0]).join('').slice(0, 2)
               }
             </div>
             <button className="aq-compose-pill" onClick={() => setShowCreateModal(true)}>

@@ -1,5 +1,4 @@
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom'
-import { useAuth } from '../auth/AuthContext'
+import { Outlet, Link, useLocation } from 'react-router-dom'
 import AQNav from './AQNav'
 
 const DashboardLayout = () => {

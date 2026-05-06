@@ -24,10 +24,10 @@ const RejectedPage = () => {
           Your application to join AquaTerra wasn't approved this time.
         </p>
 
-        {member?.rejectionNote && (
+        {member?.rejection_note && (
           <div style={{ background: 'rgba(224,92,92,0.08)', border: '1px solid rgba(224,92,92,0.2)', borderRadius: 'var(--r)', padding: '16px 20px', marginBottom: 24, textAlign: 'left' }}>
             <p style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 10, color: '#e05c5c', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>Reason</p>
-            <p style={{ fontFamily: 'var(--f-body)', fontSize: 14, color: 'var(--txt-2)', lineHeight: 1.6 }}>{member.rejectionNote}</p>
+            <p style={{ fontFamily: 'var(--f-body)', fontSize: 14, color: 'var(--txt-2)', lineHeight: 1.6 }}>{member.rejection_note}</p>
           </div>
         )}
 

@@ -1,21 +1,7 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
-import schoolService from '../services/schoolService'
-
-interface GoogleProfile {
-  googleId: string
-  email: string
-  name: string
-  picture?: string
-}
-
-interface School {
-  schoolId: number
-  uuid: string
-  name: string
-  shortName?: string
-}
+import { supabaseCommunity } from '../lib/supabaseCommunity'
 
 const CLASS_OPTIONS = [
   'Class 9', 'Class 10', 'Class 11', 'Class 12',
@@ -24,29 +10,36 @@ const CLASS_OPTIONS = [
 
 const RegisterPage = () => {
   const navigate = useNavigate()
-  const location = useLocation()
-  const { register } = useAuth()
+  const { member, refreshMember, isLoading: authLoading, isAuthenticated } = useAuth()
 
-  const googleProfile = (location.state as { googleProfile?: GoogleProfile })?.googleProfile
-
-  const [schoolId, setSchoolId] = useState('')
-  const [classGrade, setClassGrade] = useState('')
-  const [schools, setSchools] = useState<School[]>([])
-  const [schoolQuery, setSchoolQuery] = useState('')
+  const [formData, setFormData] = useState({
+    fullName: member?.full_name || '',
+    classGrade: member?.class_grade || '',
+    phone: member?.phone || '',
+    joinReason: member?.join_reason || ''
+  })
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!googleProfile) navigate('/login', { replace: true })
-  }, [googleProfile, navigate])
+    if (!authLoading && !isAuthenticated) {
+      navigate('/login', { replace: true })
+    }
+  }, [authLoading, isAuthenticated, navigate])
 
   useEffect(() => {
-    schoolService.getSchools({ limit: 200 })
-      .then(r => { if (r.success) setSchools(r.data as unknown as School[]) })
-      .catch(() => {})
-  }, [])
+    if (member?.class_grade && member?.join_reason) {
+      if (member.status === 'active') {
+        navigate('/feed', { replace: true })
+      } else if (member.status === 'pending_approval') {
+        navigate('/pending', { replace: true })
+      } else if (member.status === 'rejected') {
+        navigate('/rejected', { replace: true })
+      }
+    }
+  }, [member, navigate])
 
-  if (!googleProfile) {
+  if (authLoading || !member) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
         <div style={{ width: 32, height: 32, border: '2px solid var(--line-2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
@@ -55,29 +48,45 @@ const RegisterPage = () => {
     )
   }
 
-  const filteredSchools = schools.filter(s =>
-    s.name.toLowerCase().includes(schoolQuery.toLowerCase())
-  )
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      [e.target.name]: e.target.value
+    }))
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!classGrade) { setError('Please select your class/grade'); return }
-    setIsLoading(true); setError(null)
+    setIsLoading(true)
+    setError(null)
+
+    if (!formData.fullName || !formData.classGrade || !formData.joinReason) {
+      setError('Please fill in all required fields')
+      setIsLoading(false)
+      return
+    }
+
     try {
-      const result = await register({
-        googleId: googleProfile.googleId,
-        email: googleProfile.email,
-        fullName: googleProfile.name,
-        avatarUrl: googleProfile.picture,
-        classGrade,
-        phone: '',
-        joinReason: 'Joining AquaTerra community',
-        schoolId: schoolId ? parseInt(schoolId) : undefined,
-      })
-      if (result.success) navigate('/pending')
-      else setError(result.message || 'Registration failed')
-    } catch { setError('Failed to submit registration') }
-    finally { setIsLoading(false) }
+      const { error } = await supabaseCommunity
+        .from('members')
+        .update({
+          full_name: formData.fullName,
+          class_grade: formData.classGrade,
+          phone: formData.phone,
+          join_reason: formData.joinReason
+        })
+        .eq('member_id', member.member_id)
+
+      if (error) throw error
+
+      await refreshMember()
+      navigate('/pending')
+    } catch (err: any) {
+      console.error('Registration update error:', err)
+      setError(err.message || 'Failed to submit registration')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -88,22 +97,11 @@ const RegisterPage = () => {
             <span style={{ color: 'var(--accent)' }}>AQ</span><span style={{ color: 'var(--txt)' }}>uaTerra</span>
           </div>
           <p style={{ fontFamily: 'var(--f-mono)', fontSize: 10, color: 'var(--txt-3)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 4 }}>
-            Step 2 of 2
+            Complete Your Profile
           </p>
           <p style={{ fontFamily: 'var(--f-serif)', fontStyle: 'italic', fontSize: 18, color: 'var(--txt)', lineHeight: 1.4 }}>
-            One more thing.
+            Tell us a bit about yourself.
           </p>
-        </div>
-
-        {/* Welcome */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', background: 'var(--surface)', borderRadius: 'var(--r)', marginBottom: 24, border: '1px solid var(--line-2)' }}>
-          {googleProfile.picture && (
-            <img src={googleProfile.picture} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
-          )}
-          <div>
-            <div style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 13, color: 'var(--txt)' }}>{googleProfile.name}</div>
-            <div style={{ fontFamily: 'var(--f-mono)', fontSize: 10, color: 'var(--txt-3)' }}>{googleProfile.email}</div>
-          </div>
         </div>
 
         {error && (
@@ -113,59 +111,68 @@ const RegisterPage = () => {
         )}
 
         <form onSubmit={handleSubmit}>
-          {/* School */}
+          {/* Full Name */}
           <div style={{ marginBottom: 20 }}>
-            <label htmlFor="reg-school" style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--txt-3)', display: 'block', marginBottom: 8 }}>
-              School
+            <label style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--txt-3)', display: 'block', marginBottom: 8 }}>
+              Full Name <span style={{ color: 'var(--accent)' }}>*</span>
             </label>
             <input
-              id="reg-school"
-              type="text"
               className="aq-input"
-              placeholder="Search your school..."
-              value={schoolQuery}
-              onChange={e => setSchoolQuery(e.target.value)}
-              style={{ marginBottom: 6 }}
-              autoComplete="organization"
+              name="fullName"
+              value={formData.fullName}
+              onChange={handleChange}
+              required
+              placeholder="Your full name"
             />
-            {schoolQuery && filteredSchools.length > 0 && (
-              <div style={{ background: 'var(--bg-3)', border: '1px solid var(--line-2)', borderRadius: 'var(--r)', maxHeight: 160, overflowY: 'auto', marginTop: 4 }}>
-                {filteredSchools.slice(0, 8).map(s => (
-                  <button
-                    key={s.schoolId}
-                    type="button"
-                    onClick={() => { setSchoolId(String(s.schoolId)); setSchoolQuery(s.name) }}
-                    style={{
-                      width: '100%', textAlign: 'left', padding: '10px 14px',
-                      fontFamily: 'var(--f-display)', fontSize: 12, color: 'var(--txt)',
-                      borderBottom: '1px solid var(--line)', transition: 'background 0.12s',
-                      background: 'none',
-                    }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'var(--surface)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                  >
-                    {s.name}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Class */}
-          <div style={{ marginBottom: 28 }}>
-            <label htmlFor="reg-class" style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--txt-3)', display: 'block', marginBottom: 8 }}>
+          {/* Class/Grade */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--txt-3)', display: 'block', marginBottom: 8 }}>
               Class / Grade <span style={{ color: 'var(--accent)' }}>*</span>
             </label>
             <select
-              id="reg-class"
               className="aq-input"
-              value={classGrade}
-              onChange={e => setClassGrade(e.target.value)}
+              name="classGrade"
+              value={formData.classGrade}
+              onChange={handleChange}
               required
             >
               <option value="">Select your class</option>
               {CLASS_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
             </select>
+          </div>
+
+          {/* Phone */}
+          <div style={{ marginBottom: 20 }}>
+            <label style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--txt-3)', display: 'block', marginBottom: 8 }}>
+              Phone Number
+            </label>
+            <input
+              className="aq-input"
+              name="phone"
+              type="tel"
+              value={formData.phone}
+              onChange={handleChange}
+              placeholder="+91 XXXXX XXXXX"
+            />
+          </div>
+
+          {/* Join Reason */}
+          <div style={{ marginBottom: 28 }}>
+            <label style={{ fontFamily: 'var(--f-display)', fontWeight: 700, fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--txt-3)', display: 'block', marginBottom: 8 }}>
+              Why do you want to join? <span style={{ color: 'var(--accent)' }}>*</span>
+            </label>
+            <textarea
+              className="aq-input"
+              name="joinReason"
+              value={formData.joinReason}
+              onChange={handleChange}
+              required
+              rows={4}
+              placeholder="Tell us what interests you about our community..."
+              style={{ resize: 'vertical' }}
+            />
           </div>
 
           <button

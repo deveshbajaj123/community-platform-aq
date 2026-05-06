@@ -2,7 +2,14 @@ import { createClient } from '@supabase/supabase-js'
 
 export const supabase = createClient(
   'https://nurtpdbqfizmqtztmiwk.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51cnRwZGJxZml6bXF0enRtaXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0NjE1NDQsImV4cCI6MjA5MTAzNzU0NH0.v-clxVi6B-tqQz8508ic4DwwQVPH0cUjhZJjtkdKwYA'
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im51cnRwZGJxZml6bXF0enRtaXdrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzU0NjE1NDQsImV4cCI6MjA5MTAzNzU0NH0.v-clxVi6B-tqQz8508ic4DwwQVPH0cUjhZJjtkdKwYA',
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+      detectSessionInUrl: false,
+    },
+  }
 )
 
 export interface WelfareProject {

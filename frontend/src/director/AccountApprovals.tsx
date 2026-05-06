@@ -7,7 +7,7 @@ const initials = (name: string) => (name || 'U').split(' ').map(n => n[0]).join(
 
 const AccountApprovals = () => {
   const { member: currentMember } = useAuth()
-  const isSuperAdmin = currentMember?.isSuperAdmin || false
+  const isSuperAdmin = currentMember?.role === 'super_admin'
 
   const [hasAccess, setHasAccess] = useState<boolean | null>(null)
   const [members, setMembers] = useState<PendingMember[]>([])

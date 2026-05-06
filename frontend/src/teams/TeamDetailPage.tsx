@@ -40,7 +40,7 @@ const TeamDetailPage = () => {
   const [processingRequest, setProcessingRequest] = useState<string | null>(null)
   const [joinRequestsError, setJoinRequestsError] = useState<string | null>(null)
 
-  const isSuperAdmin = currentMember?.isSuperAdmin || false
+  const isSuperAdmin = currentMember?.role === 'super_admin'
   const isGlobalDirector = currentMember?.role === 'director'
   const isTeamCreator = team?.createdByUuid === currentMember?.uuid
   const isTeamLead = team?.members?.some(m => m.uuid === currentMember?.uuid && m.role === 'lead')

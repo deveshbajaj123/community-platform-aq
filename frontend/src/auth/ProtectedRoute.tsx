@@ -1,6 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './AuthContext'
-import Spinner from '../components/Spinner'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -20,14 +19,22 @@ const ProtectedRoute = ({
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-cream-100">
-        <Spinner size="lg" />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
+        <div style={{ width: 32, height: 32, border: '2px solid var(--line-2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
   }
 
   if (!isAuthenticated || !member) {
     return <Navigate to="/login" state={{ from: location }} replace />
+  }
+
+  // Check if profile is incomplete (needs registration step)
+  if (!member.class_grade || !member.join_reason) {
+    if (location.pathname !== '/register') {
+      return <Navigate to="/register" replace />
+    }
   }
 
   // Check status for active requirement
@@ -43,19 +50,14 @@ const ProtectedRoute = ({
     }
   }
 
-  // Check director role - return 404-style page for non-directors
-  if (requireDirector || requireSuperAdmin) {
-    if (member.role !== 'director') {
-      // Redirect to feed instead of showing forbidden
-      // This hides the existence of director routes
-      return <Navigate to="/feed" replace />
-    }
+  // Check director role
+  if (requireDirector && member.role !== 'director' && member.role !== 'super_admin') {
+    return <Navigate to="/feed" replace />
   }
 
   // Check super admin role
   if (requireSuperAdmin) {
-    if (!member.isSuperAdmin) {
-      // Redirect to director dashboard for non-super-admins
+    if (member.role !== 'super_admin') {
       return <Navigate to="/director" replace />
     }
   }

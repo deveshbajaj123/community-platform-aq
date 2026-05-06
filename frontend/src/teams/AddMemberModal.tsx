@@ -8,7 +8,7 @@ import Avatar from '../components/Avatar'
 import Alert from '../components/Alert'
 import teamService from '../services/teamService'
 import { useDebounce } from '../hooks/useDebounce'
-import api from '../services/api'
+import feedService from '../services/feedService'
 
 interface SearchedMember {
   memberId: number
@@ -56,10 +56,10 @@ const AddMemberModal = ({ isOpen, onClose, onSuccess, teamUuid, existingMemberId
       }
       setIsSearching(true)
       try {
-        const response = await api.get('/search', { params: { q: debouncedSearch, type: 'people', limit: 10 } })
+        const response = await feedService.searchMembers(debouncedSearch)
         if (cancelled) return
-        if (response.data.success) {
-          const filtered = response.data.data.results.people.filter(
+        if (response.success) {
+          const filtered = response.data.members.filter(
             (m: SearchedMember) =>
               !existingIdsRef.current.includes(m.memberId) &&
               !selectedIdsRef.current.includes(m.memberId)

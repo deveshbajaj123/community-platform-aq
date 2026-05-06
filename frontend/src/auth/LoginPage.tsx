@@ -1,61 +1,58 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { GoogleLogin, CredentialResponse } from '@react-oauth/google'
-import { jwtDecode } from 'jwt-decode'
+import { supabaseCommunity } from '../lib/supabaseCommunity'
 import { useAuth } from './AuthContext'
-
-interface GoogleJwtPayload {
-  sub: string
-  email: string
-  name: string
-  picture?: string
-  email_verified: boolean
-}
 
 const LoginPage = () => {
   const navigate = useNavigate()
   const location = useLocation()
-  const { login, member, isLoading: authLoading, isAuthenticated } = useAuth()
+  const { member, isLoading: authLoading, isAuthenticated } = useAuth()
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/feed'
 
+  // Redirect authenticated users away from login page
   useEffect(() => {
     if (!authLoading && isAuthenticated && member) {
-      if (member.status === 'active') navigate(from, { replace: true })
-      else if (member.status === 'pending_approval') navigate('/pending', { replace: true })
-      else if (member.status === 'rejected') navigate('/rejected', { replace: true })
+      if (!member.class_grade || !member.join_reason) {
+        navigate('/register', { replace: true })
+      } else if (member.status === 'active') {
+        navigate(from, { replace: true })
+      } else if (member.status === 'pending_approval') {
+        navigate('/pending', { replace: true })
+      } else if (member.status === 'rejected') {
+        navigate('/rejected', { replace: true })
+      }
     }
   }, [authLoading, isAuthenticated, member, navigate, from])
 
-  if (authLoading || (isAuthenticated && member)) {
+  // Only block on auth initialisation
+  if (authLoading) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: 'var(--bg)' }}>
-        <div className="aq-spinner" style={{ width: 32, height: 32 }} />
+        <div style={{ width: 32, height: 32, border: '2px solid var(--line-2)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
   }
 
-  const handleGoogleSuccess = async (credentialResponse: CredentialResponse) => {
-    if (!credentialResponse.credential) { setError('Failed to get credentials from Google'); return }
-    setIsLoading(true); setError(null)
+  const handleGoogleSignIn = async () => {
+    setIsLoading(true)
+    setError(null)
     try {
-      const decoded = jwtDecode<GoogleJwtPayload>(credentialResponse.credential)
-      const result = await login({
-        googleId: decoded.sub, email: decoded.email, name: decoded.name,
-        picture: decoded.picture, credential: credentialResponse.credential,
+      const { error } = await supabaseCommunity.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: window.location.origin
+        }
       })
-      if (result.success) {
-        if (result.status === 'active') navigate(from, { replace: true })
-        else if (result.status === 'needs_registration') navigate('/register', { state: { googleProfile: { googleId: decoded.sub, email: decoded.email, name: decoded.name, picture: decoded.picture } } })
-        else if (result.status === 'pending_approval') navigate('/pending')
-        else if (result.status === 'rejected') navigate('/rejected')
-      } else {
-        setError(result.message || 'Login failed')
-      }
-    } catch { setError('Failed to process Google login') }
-    finally { setIsLoading(false) }
+      if (error) throw error
+    } catch (err: any) {
+      console.error('Login error:', err)
+      setError(err.message || 'Failed to process Google login')
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -84,16 +81,23 @@ const LoginPage = () => {
               <p style={{ fontFamily: 'var(--f-display)', fontSize: 11, color: 'var(--txt-3)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Signing in…</p>
             </div>
           ) : (
-            <GoogleLogin
-              onSuccess={handleGoogleSuccess}
-              onError={() => setError('Google sign-in failed. Please try again.')}
-              useOneTap
-              theme="outline"
-              size="large"
-              width="300"
-              text="signin_with"
-              shape="rectangular"
-            />
+            <button
+              onClick={handleGoogleSignIn}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 12, padding: '12px 32px',
+                background: 'var(--bg)', border: '1px solid var(--line-2)', borderRadius: 'var(--r)',
+                cursor: 'pointer', fontSize: 14, fontFamily: 'var(--f-display)', fontWeight: 600,
+                color: 'var(--txt)', letterSpacing: '0.02em',
+              }}
+            >
+              <svg viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
+                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+              </svg>
+              Continue with Google
+            </button>
           )}
         </div>
 

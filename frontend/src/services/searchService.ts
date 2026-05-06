@@ -1,4 +1,4 @@
-import api from './api'
+import { supabaseCommunity } from '../lib/supabaseCommunity'
 
 export interface SearchPerson {
   memberId: number
@@ -8,7 +8,6 @@ export interface SearchPerson {
   email: string
   classGrade?: string
   role: string
-  bio?: string
 }
 
 export interface SearchProject {
@@ -71,24 +70,121 @@ export interface QuickSearchResponse {
 }
 
 export const searchService = {
-  /**
-   * Global search
-   */
   async search(query: string, type: string = 'all', limit: number = 10): Promise<SearchResponse> {
-    const response = await api.get('/search', {
-      params: { q: query, type, limit }
-    })
-    return response.data
+    const results: SearchResults = {
+      people: [],
+      projects: [],
+      teams: [],
+      schools: []
+    }
+    let totalCount = 0
+
+    if (!query) {
+      return { success: true, data: { query, type, totalCount: 0, results } }
+    }
+
+    const queries = []
+
+    if (type === 'all' || type === 'people') {
+      queries.push(
+        supabaseCommunity.from('members')
+          .select('*')
+          .ilike('full_name', `%${query}%`)
+          .limit(limit)
+          .then(({ data }) => {
+            if (data) {
+              results.people = data.map(m => ({
+                memberId: m.member_id,
+                uuid: m.uuid,
+                fullName: m.full_name,
+                avatarUrl: m.avatar_url ?? undefined,
+                email: m.email,
+                classGrade: m.class_grade ?? undefined,
+                role: m.role
+              }))
+              totalCount += data.length
+            }
+          })
+      )
+    }
+
+    if (type === 'all' || type === 'teams') {
+      queries.push(
+        supabaseCommunity.from('teams')
+          .select('*')
+          .ilike('name', `%${query}%`)
+          .limit(limit)
+          .then(({ data }) => {
+            if (data) {
+              results.teams = data.map((t: any) => ({
+                uuid: t.uuid,
+                name: t.name,
+                description: t.description ?? '',
+                category: t.category,
+                logoUrl: t.logo_url ?? undefined,
+                memberCount: 0
+              }))
+              totalCount += data.length
+            }
+          })
+      )
+    }
+
+    await Promise.all(queries)
+
+    return {
+      success: true,
+      data: {
+        query,
+        type,
+        totalCount,
+        results
+      }
+    }
   },
 
-  /**
-   * Quick search for autocomplete
-   */
   async quickSearch(query: string, limit: number = 5): Promise<QuickSearchResponse> {
-    const response = await api.get('/search/quick', {
-      params: { q: query, limit }
-    })
-    return response.data
+    const suggestions: QuickSearchSuggestion[] = []
+
+    if (!query) {
+      return { success: true, data: { suggestions } }
+    }
+
+    const [peopleRes, teamsRes] = await Promise.all([
+      supabaseCommunity.from('members')
+        .select('uuid, full_name, avatar_url')
+        .ilike('full_name', `%${query}%`)
+        .limit(limit),
+      supabaseCommunity.from('teams')
+        .select('uuid, name, logo_url')
+        .ilike('name', `%${query}%`)
+        .limit(limit)
+    ])
+
+    if (peopleRes.data) {
+      suggestions.push(...peopleRes.data.map(m => ({
+        uuid: m.uuid,
+        name: m.full_name,
+        type: 'person' as const,
+        image: m.avatar_url ?? undefined
+      })))
+    }
+
+    if (teamsRes.data) {
+      suggestions.push(...teamsRes.data.map(t => ({
+        uuid: t.uuid,
+        name: t.name,
+        type: 'team' as const,
+        image: t.logo_url ?? undefined
+      })))
+    }
+
+    return {
+      success: true,
+      data: {
+        suggestions: suggestions.slice(0, limit * 2)
+      }
+    }
   }
 }
 

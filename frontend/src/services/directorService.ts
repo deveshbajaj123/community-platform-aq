@@ -1,263 +1,580 @@
-import api, { Post, PaginatedResponse } from './api'
+import { supabaseCommunity } from '../lib/supabaseCommunity'
+import { Post, PaginatedResponse } from './api'
+import {
+  DashboardStats,
+  PendingMember,
+  DirectoryMember,
+  EligibleMember,
+  CategoryAssignments,
+} from './directorServiceTypes'
 
-export interface DashboardStats {
-  pendingMemberApprovals: number
-  pendingPostReviews: number
-  totalActiveMembers: number
-  totalPublishedPosts: number
-}
-
-export interface PendingMember {
-  memberId: number
-  uuid: string
-  email: string
-  fullName: string
-  avatarUrl?: string
-  classGrade?: string
-  phone?: string
-  joinReason?: string
-  createdAt: string
-}
-
-export interface DirectoryMember {
-  memberId: number
-  uuid: string
-  email: string
-  fullName: string
-  avatarUrl?: string
-  classGrade?: string
-  role: 'member' | 'director'
-  status: string
-  createdAt: string
-  postCount?: number
-}
-
-export interface Director {
-  memberId: number
-  uuid: string
-  fullName: string
-  avatarUrl?: string
-  email: string
-  createdAt: string
-  isSuperAdmin?: boolean
-  categories: string[]
-}
-
-export interface EligibleMember {
-  memberId: number
-  uuid: string
-  email: string
-  fullName: string
-  avatarUrl?: string
-  classGrade?: string
-  createdAt: string
-}
-
-export interface CategoryAssignment {
-  memberId: number
-  uuid: string
-  fullName: string
-  avatarUrl?: string
-  email: string
-  assignedAt: string
-}
-
-export type CategoryAssignments = Record<string, CategoryAssignment[]>
+export * from './directorServiceTypes'
 
 export const directorService = {
-  /**
-   * Get dashboard stats
-   */
+  async getCurrentMemberId() {
+    const { data: { session } } = await supabaseCommunity.auth.getSession()
+    if (!session?.user) throw new Error('Not authenticated')
+
+    const { data: member } = await supabaseCommunity
+      .from('members')
+      .select('member_id')
+      .eq('auth_uid', session.user.id)
+      .single()
+
+    if (!member) throw new Error('Member profile not found')
+    return member.member_id
+  },
+
   async getDashboardStats() {
-    const response = await api.get<{ success: boolean; data: DashboardStats }>('/director/dashboard')
-    return response.data
+    const { count: pendingMembers } = await supabaseCommunity
+      .from('members')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending_approval')
+
+    const { count: pendingPosts } = await supabaseCommunity
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending_review')
+
+    const { count: activeMembers } = await supabaseCommunity
+      .from('members')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'active')
+
+    const { count: publishedPosts } = await supabaseCommunity
+      .from('posts')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'published')
+
+    return {
+      success: true,
+      data: {
+        pendingMemberApprovals: pendingMembers || 0,
+        pendingPostReviews: pendingPosts || 0,
+        totalActiveMembers: activeMembers || 0,
+        totalPublishedPosts: publishedPosts || 0
+      } as DashboardStats
+    }
   },
 
-  /**
-   * Get pending member approvals
-   */
   async getPendingApprovals(params: { page?: number; limit?: number }) {
-    const response = await api.get<PaginatedResponse<PendingMember>>('/director/approvals', { params })
-    return response.data
+    const page = params.page || 1
+    const limit = params.limit || 10
+    const offset = (page - 1) * limit
+
+    const { data, count, error } = await supabaseCommunity
+      .from('pending_member_approvals')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1)
+
+    if (error) throw error
+
+    const mapped = (data || []).map(m => ({
+      memberId: m.member_id,
+      uuid: m.uuid,
+      email: m.email,
+      fullName: m.full_name,
+      classGrade: m.class_grade,
+      phone: m.phone,
+      joinReason: m.join_reason,
+      createdAt: m.created_at
+    }))
+
+    const totalItems = count || 0
+    const totalPages = Math.ceil(totalItems / limit)
+
+    return {
+      success: true,
+      data: mapped,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems,
+        itemsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    } as PaginatedResponse<PendingMember>
   },
 
-  /**
-   * Approve a member
-   */
   async approveMember(memberId: number) {
-    const response = await api.post<{ success: boolean; data: { member: PendingMember }; message: string }>(`/director/approvals/${memberId}/approve`)
-    return response.data
+    const currentMemberId = await this.getCurrentMemberId()
+
+    const { data, error } = await supabaseCommunity
+      .from('members')
+      .update({
+        status: 'active',
+        approved_by: currentMemberId,
+        approved_at: new Date().toISOString()
+      })
+      .eq('member_id', memberId)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      success: true,
+      message: 'Member approved successfully',
+      data: {
+        member: {
+          memberId: data.member_id,
+          uuid: data.uuid,
+          email: data.email,
+          fullName: data.full_name,
+          classGrade: data.class_grade,
+          createdAt: data.created_at
+        } as PendingMember
+      }
+    }
   },
 
-  /**
-   * Reject a member
-   */
   async rejectMember(memberId: number, rejectionNote: string) {
-    const response = await api.post<{ success: boolean; data: { member: PendingMember }; message: string }>(`/director/approvals/${memberId}/reject`, { rejectionNote })
-    return response.data
+    const { data, error } = await supabaseCommunity
+      .from('members')
+      .update({
+        status: 'rejected',
+        rejection_note: rejectionNote
+      })
+      .eq('member_id', memberId)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      success: true,
+      message: 'Member rejected successfully',
+      data: {
+        member: {
+          memberId: data.member_id,
+          uuid: data.uuid,
+          email: data.email,
+          fullName: data.full_name,
+          classGrade: data.class_grade,
+          createdAt: data.created_at
+        } as PendingMember
+      }
+    }
   },
 
-  /**
-   * Get pending posts for moderation
-   */
   async getPendingPosts(params: { page?: number; limit?: number }) {
-    const response = await api.get<PaginatedResponse<Post>>('/director/posts', { params })
-    return response.data
+    const page = params.page || 1
+    const limit = params.limit || 10
+    const offset = (page - 1) * limit
+
+    const { data, count, error } = await supabaseCommunity
+      .from('post_feed_view')
+      .select('*', { count: 'exact' })
+      .eq('status', 'pending_review')
+      .order('created_at', { ascending: true })
+      .range(offset, offset + limit - 1)
+
+    if (error) throw error
+
+    const mappedPosts = (data || []).map((post: any) => ({
+      postId: post.post_id,
+      uuid: post.uuid,
+      category: post.category,
+      body: post.body,
+      linkUrl: post.link_url,
+      linkTitle: post.link_title,
+      linkImage: post.link_image,
+      status: post.status,
+      createdAt: post.created_at,
+      authorId: post.author_id,
+      authorUuid: post.author_uuid,
+      authorName: post.author_name,
+      authorAvatar: post.author_avatar,
+      authorRole: post.author_role,
+      likeCount: post.like_count,
+      commentCount: post.comment_count,
+      images: post.images ? (post.images as any[]).map((img: any) => ({
+        blobUrl: img.url,
+        displayOrder: img.order
+      })) : [],
+      taggedMembers: post.tagged_members ? (post.tagged_members as any[]).map((member: any) => ({
+        memberId: member.id,
+        uuid: member.uuid,
+        fullName: member.name
+      })) : []
+    } as Post))
+
+    const totalItems = count || 0
+    const totalPages = Math.ceil(totalItems / limit)
+
+    return {
+      success: true,
+      data: mappedPosts,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems,
+        itemsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    } as PaginatedResponse<Post>
   },
 
-  /**
-   * Approve a post
-   */
   async approvePost(postId: number) {
-    const response = await api.post<{ success: boolean; data: { post: Post }; message: string }>(`/director/posts/${postId}/approve`)
-    return response.data
+    const currentMemberId = await this.getCurrentMemberId()
+
+    const { data, error } = await supabaseCommunity
+      .from('posts')
+      .update({
+        status: 'published',
+        reviewed_by: currentMemberId,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('post_id', postId)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      success: true,
+      message: 'Post approved successfully',
+      data: { post: { postId: data.post_id } as Post }
+    }
   },
 
-  /**
-   * Reject a post
-   */
   async rejectPost(postId: number, rejectionNote: string) {
-    const response = await api.post<{ success: boolean; data: { post: Post }; message: string }>(`/director/posts/${postId}/reject`, { rejectionNote })
-    return response.data
+    const currentMemberId = await this.getCurrentMemberId()
+
+    const { data, error } = await supabaseCommunity
+      .from('posts')
+      .update({
+        status: 'rejected',
+        rejection_note: rejectionNote,
+        reviewed_by: currentMemberId,
+        reviewed_at: new Date().toISOString()
+      })
+      .eq('post_id', postId)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      success: true,
+      message: 'Post rejected successfully',
+      data: { post: { postId: data.post_id } as Post }
+    }
   },
 
-  /**
-   * Get member directory
-   */
   async getMemberDirectory(params: { page?: number; limit?: number; search?: string }) {
-    const response = await api.get<PaginatedResponse<DirectoryMember>>('/director/members', { params })
-    return response.data
+    const page = params.page || 1
+    const limit = params.limit || 10
+    const offset = (page - 1) * limit
+
+    let query = supabaseCommunity
+      .from('members')
+      .select('*', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (params.search) {
+      query = query.ilike('full_name', `%${params.search}%`)
+    }
+
+    const { data, count, error } = await query
+    if (error) throw error
+
+    const mapped = (data || []).map(m => ({
+      memberId: m.member_id,
+      uuid: m.uuid,
+      email: m.email,
+      fullName: m.full_name,
+      avatarUrl: m.avatar_url,
+      classGrade: m.class_grade,
+      role: m.role,
+      status: m.status,
+      createdAt: m.created_at
+    }))
+
+    const totalItems = count || 0
+    const totalPages = Math.ceil(totalItems / limit)
+
+    return {
+      success: true,
+      data: mapped,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems,
+        itemsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    } as PaginatedResponse<DirectoryMember>
   },
 
-  // ============================================
-  // CATEGORY MANAGEMENT
-  // ============================================
-
-  /**
-   * Get all category assignments
-   */
   async getCategoryAssignments() {
-    const response = await api.get<{
-      success: boolean
-      data: {
-        categories: string[]
-        assignments: CategoryAssignments
+    const { data, error } = await supabaseCommunity
+      .from('director_categories')
+      .select(`
+        category,
+        assigned_at,
+        members (
+          member_id,
+          uuid,
+          full_name,
+          avatar_url,
+          email
+        )
+      `)
+
+    if (error) throw error
+
+    const categories = ['events', 'welfare', 'content', 'operations', 'labs']
+    const assignments: CategoryAssignments = categories.reduce((acc, cat) => {
+      acc[cat] = []
+      return acc
+    }, {} as CategoryAssignments)
+
+    data?.forEach((row: any) => {
+      if (assignments[row.category]) {
+        assignments[row.category].push({
+          memberId: row.members.member_id,
+          uuid: row.members.uuid,
+          fullName: row.members.full_name,
+          avatarUrl: row.members.avatar_url,
+          email: row.members.email,
+          assignedAt: row.assigned_at
+        })
       }
-    }>('/director/categories')
-    return response.data
+    })
+
+    return {
+      success: true,
+      data: {
+        categories,
+        assignments
+      }
+    }
   },
 
-  /**
-   * Get current director's assigned categories
-   */
   async getMyCategories() {
-    const response = await api.get<{
-      success: boolean
+    const currentMemberId = await this.getCurrentMemberId()
+
+    const { data, error } = await supabaseCommunity
+      .from('director_categories')
+      .select('category, assigned_at, assigned_by')
+      .eq('member_id', currentMemberId)
+
+    if (error) throw error
+
+    return {
+      success: true,
       data: {
-        categories: Array<{ category: string; assignedAt: string; assignedBy: string }>
+        categories: (data || []).map(c => ({
+          category: c.category,
+          assignedAt: c.assigned_at,
+          assignedBy: String(c.assigned_by)
+        }))
       }
-    }>('/director/my-categories')
-    return response.data
+    }
   },
 
-  /**
-   * Get all directors with their categories
-   */
   async getAllDirectors() {
-    const response = await api.get<{
-      success: boolean
-      data: { directors: Director[] }
-    }>('/director/directors')
-    return response.data
+    const { data, error } = await supabaseCommunity
+      .from('members')
+      .select(`
+        member_id,
+        uuid,
+        full_name,
+        avatar_url,
+        email,
+        created_at,
+        role,
+        director_categories (
+          category
+        )
+      `)
+      .in('role', ['director', 'super_admin'])
+      .eq('status', 'active')
+
+    if (error) throw error
+
+    const directors = (data || []).map((m: any) => ({
+      memberId: m.member_id,
+      uuid: m.uuid,
+      fullName: m.full_name,
+      avatarUrl: m.avatar_url,
+      email: m.email,
+      createdAt: m.created_at,
+      isSuperAdmin: m.role === 'super_admin',
+      categories: m.director_categories ? m.director_categories.map((c: any) => c.category) : []
+    }))
+
+    return {
+      success: true,
+      data: { directors }
+    }
   },
 
-  /**
-   * Assign a category to a director (super-admin only)
-   */
   async assignCategory(memberId: number, category: string) {
-    const response = await api.post<{ success: boolean; message: string }>('/director/super-admin/categories/assign', {
-      memberId,
-      category
-    })
-    return response.data
+    const currentMemberId = await this.getCurrentMemberId()
+
+    const { error } = await supabaseCommunity
+      .from('director_categories')
+      .insert({
+        member_id: memberId,
+        category,
+        assigned_by: currentMemberId
+      })
+
+    if (error) throw error
+
+    return { success: true, message: 'Category assigned successfully' }
   },
 
-  /**
-   * Remove a category assignment from a director (super-admin only)
-   */
   async unassignCategory(memberId: number, category: string) {
-    const response = await api.post<{ success: boolean; message: string }>('/director/super-admin/categories/unassign', {
-      memberId,
-      category
+    const { error } = await supabaseCommunity
+      .from('director_categories')
+      .delete()
+      .eq('member_id', memberId)
+      .eq('category', category)
+
+    if (error) throw error
+
+    return { success: true, message: 'Category assignment removed' }
+  },
+
+  async approvePostCategory(postUuid: string, category: string) {
+    const { data, error } = await supabaseCommunity.rpc('approve_post_category', {
+      p_post_uuid: postUuid,
+      p_category: category
     })
-    return response.data
-  },
 
-  /**
-   * Approve a post for a specific category (multi-category support)
-   */
-  async approvePostCategory(postId: number, category: string) {
-    const response = await api.post<{
-      success: boolean
+    if (error) throw error
+    const result = data as { success: boolean; error?: string; published?: boolean; categories_remaining?: string[] } | null
+    if (!result?.success) throw new Error(result?.error || 'Approval failed')
+
+    return {
+      success: true,
+      message: result.published ? 'Post fully approved and published' : 'Category approved',
       data: {
-        categoryApproved: string
-        fullyApproved: boolean
-        approvedCategories?: string[]
-        pendingCategories?: string[]
+        categoryApproved: category,
+        fullyApproved: result.published,
+        categoriesRemaining: result.categories_remaining
       }
-      message: string
-    }>(`/director/posts/${postId}/approve`, { category })
-    return response.data
+    }
   },
 
-  // ============================================
-  // SUPER-ADMIN: DIRECTOR MANAGEMENT
-  // ============================================
-
-  /**
-   * Get members eligible for director promotion (super-admin only)
-   */
   async getEligibleMembers(params: { page?: number; limit?: number; search?: string }) {
-    const response = await api.get<PaginatedResponse<EligibleMember>>('/director/super-admin/eligible-members', { params })
-    return response.data
+    const page = params.page || 1
+    const limit = params.limit || 10
+    const offset = (page - 1) * limit
+
+    let query = supabaseCommunity
+      .from('members')
+      .select('*', { count: 'exact' })
+      .eq('status', 'active')
+      .eq('role', 'member')
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1)
+
+    if (params.search) {
+      query = query.ilike('full_name', `%${params.search}%`)
+    }
+
+    const { data, count, error } = await query
+    if (error) throw error
+
+    const mapped = (data || []).map(m => ({
+      memberId: m.member_id,
+      uuid: m.uuid,
+      email: m.email,
+      fullName: m.full_name,
+      avatarUrl: m.avatar_url,
+      classGrade: m.class_grade,
+      createdAt: m.created_at
+    }))
+
+    const totalItems = count || 0
+    const totalPages = Math.ceil(totalItems / limit)
+
+    return {
+      success: true,
+      data: mapped,
+      pagination: {
+        currentPage: page,
+        totalPages,
+        totalItems,
+        itemsPerPage: limit,
+        hasNextPage: page < totalPages,
+        hasPrevPage: page > 1
+      }
+    } as PaginatedResponse<EligibleMember>
   },
 
-  /**
-   * Promote a member to director (super-admin only)
-   */
   async promoteToDirector(memberId: number) {
-    const response = await api.post<{ success: boolean; data: { member: DirectoryMember }; message: string }>(
-      `/director/super-admin/promote/${memberId}`
-    )
-    return response.data
+    const { data, error } = await supabaseCommunity
+      .from('members')
+      .update({ role: 'director' })
+      .eq('member_id', memberId)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      success: true,
+      message: 'Member promoted to director successfully',
+      data: { member: { memberId: data.member_id } as DirectoryMember }
+    }
   },
 
-  /**
-   * Demote a director to member (super-admin only)
-   */
   async demoteToMember(memberId: number) {
-    const response = await api.post<{ success: boolean; data: { member: DirectoryMember }; message: string }>(
-      `/director/super-admin/demote/${memberId}`
-    )
-    return response.data
+    await supabaseCommunity.from('director_categories').delete().eq('member_id', memberId)
+
+    const { data, error } = await supabaseCommunity
+      .from('members')
+      .update({ role: 'member' })
+      .eq('member_id', memberId)
+      .select()
+      .single()
+
+    if (error) throw error
+
+    return {
+      success: true,
+      message: 'Director demoted successfully',
+      data: { member: { memberId: data.member_id } as DirectoryMember }
+    }
   },
 
-  /**
-   * Delete a member account (super-admin only)
-   */
   async deleteMember(memberId: number) {
-    const response = await api.delete<{
-      success: boolean
+    const { data: member } = await supabaseCommunity
+      .from('members')
+      .select('member_id, email, full_name')
+      .eq('member_id', memberId)
+      .single()
+
+    if (!member) throw new Error('Member not found')
+
+    const { error } = await supabaseCommunity
+      .from('members')
+      .delete()
+      .eq('member_id', memberId)
+
+    if (error) throw error
+
+    return {
+      success: true,
+      message: 'Member deleted successfully',
       data: {
         deletedMember: {
-          memberId: number
-          email: string
-          fullName: string
+          memberId: member.member_id,
+          email: member.email,
+          fullName: member.full_name
         }
       }
-      message: string
-    }>(`/director/super-admin/members/${memberId}`)
-    return response.data
+    }
   }
 }
 

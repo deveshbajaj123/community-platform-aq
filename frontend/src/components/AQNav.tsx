@@ -115,7 +115,7 @@ export default function AQNav() {
     return location.pathname.startsWith(path)
   }
 
-  const initials = member ? (member.fullName || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : ''
+  const initials = member ? (member.full_name || 'U').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() : ''
   const links: { label: string; path: string; IconEl: React.FC }[] = isAuthenticated ? MEMBER_LINKS : PUBLIC_LINKS
 
   return (
@@ -194,7 +194,7 @@ export default function AQNav() {
                   aria-label="Account menu"
                   style={{
                     width: 32, height: 32, fontSize: 11,
-                    background: member.avatarUrl ? 'transparent' : 'var(--accent)',
+                    background: member.avatar_url ? 'transparent' : 'var(--accent)',
                     border: '2px solid var(--line-2)', cursor: 'pointer', overflow: 'hidden',
                     transition: 'transform 0.12s var(--ease), border-color 0.15s', position: 'relative',
                   }}
@@ -203,8 +203,8 @@ export default function AQNav() {
                   onMouseLeave={e => (e.currentTarget.style.transform = '')}
                 >
                   <span aria-hidden style={{ position: 'absolute', inset: -4 }} />
-                  {member.avatarUrl
-                    ? <img src={member.avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
+                  {member.avatar_url
+                    ? <img src={member.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} referrerPolicy="no-referrer" />
                     : initials
                   }
                 </button>
