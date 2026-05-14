@@ -1,0 +1,219 @@
+/* ParadoxBanner — full-bleed bento with paradox aesthetic.
+   Mobile-first: 6-col grid that becomes a 12-col bento at >=900px.
+   All cells link into /paradox/* sub-app sections. */
+
+.px-banner {
+  background: #FBF5E6;
+  color: #181818;
+  border-top: 2px solid #181818;
+  border-bottom: 2px solid #181818;
+  margin-bottom: 20px;
+  /* Suppress iOS tap highlight on the section + descendants */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.px-banner__grid {
+  max-width: 1380px;
+  margin: 0 auto;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(6, 1fr);
+  grid-auto-rows: minmax(0, auto);
+}
+
+.px-banner__cell {
+  position: relative;
+  border: 2px solid #181818;
+  box-shadow: 4px 4px 0 0 #181818;
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  text-decoration: none;
+  color: #181818;
+  overflow: hidden;
+  min-height: 96px;
+  transition-property: transform, box-shadow;
+  transition-duration: 120ms;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+  font-family: 'Bricolage Grotesque', system-ui, sans-serif;
+  will-change: transform;
+}
+
+.px-banner__cell:active {
+  transform: scale(0.96);
+  box-shadow: 2px 2px 0 0 #181818;
+}
+
+.px-banner__kicker {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.px-banner__kicker--yel { color: #FFD23F; opacity: 1; }
+
+.px-banner__hero-title {
+  font-family: 'Boldonse', 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(34px, 9vw, 64px);
+  line-height: 0.92;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  margin: 0;
+  color: inherit;
+}
+.px-banner__dot { color: #FF4338; }
+
+.px-banner__hero-sub {
+  margin: 8px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  opacity: 0.78;
+  max-width: 460px;
+  text-wrap: pretty;
+}
+
+.px-banner__cta {
+  align-self: flex-start;
+  background: #FF4338;
+  color: #FBF5E6;
+  padding: 10px 20px;
+  font-weight: 700;
+  font-size: 14px;
+  border-radius: 999px;
+  border: 2px solid #181818;
+  box-shadow: 3px 3px 0 0 #181818;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.px-banner__big {
+  font-family: 'Boldonse', 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(26px, 6vw, 40px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.px-banner__mid {
+  font-family: 'Boldonse', 'Bricolage Grotesque', sans-serif;
+  font-size: clamp(18px, 4vw, 24px);
+  line-height: 0.95;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.px-banner__arrow { color: #FF4338; }
+
+.px-banner__small {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.35;
+  opacity: 0.78;
+  text-wrap: pretty;
+}
+
+/* Cell color variants */
+.px-banner__cell--hero {
+  background: #FBF5E6;
+  grid-column: 1 / -1;          /* full width on mobile */
+  min-height: 220px;
+}
+.px-banner__cell--events {
+  background: #FFD23F;
+  grid-column: 1 / -1;          /* full width on mobile */
+}
+.px-banner__cell--sponsor {
+  background: #B79CED;
+  grid-column: span 4 / span 4; /* 4 of 6 mobile */
+}
+.px-banner__cell--afterparty {
+  background: #181818;
+  color: #FBF5E6;
+  grid-column: span 2 / span 2; /* 2 of 6 mobile */
+}
+.px-banner__cell--afterparty .px-banner__mid { color: #FBF5E6; }
+
+/* Ticker — always full width, marquee */
+.px-banner__ticker {
+  grid-column: 1 / -1;
+  background: #181818;
+  color: #FFD23F;
+  border: 2px solid #181818;
+  border-radius: 14px;
+  overflow: hidden;
+  white-space: nowrap;
+  padding: 8px 0;
+  font-family: 'Boldonse', 'Bricolage Grotesque', sans-serif;
+  letter-spacing: 0.22em;
+  font-size: 11px;
+  font-weight: 700;
+  box-shadow: 4px 4px 0 0 #181818;
+}
+.px-banner__ticker-track {
+  display: inline-block;
+  min-width: 200%;
+  animation: px-banner-marquee 28s linear infinite;
+  will-change: transform;
+}
+.px-banner__ticker-track > span { padding-inline: 28px; }
+
+@keyframes px-banner-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+
+/* Honor prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .px-banner__ticker-track { animation: none; }
+  .px-banner__cell { transition: none; }
+}
+
+/* Tablet — 6 cols, more breathing room */
+@media (min-width: 640px) {
+  .px-banner__grid {
+    padding: 24px 28px;
+    gap: 14px;
+  }
+  .px-banner__cell--hero  { grid-column: span 4; min-height: 240px; }
+  .px-banner__cell--events { grid-column: span 2; min-height: 240px; }
+  .px-banner__cell--sponsor { grid-column: span 4; }
+  .px-banner__cell--afterparty { grid-column: span 2; }
+}
+
+/* Desktop — 12-col bento */
+@media (min-width: 900px) {
+  .px-banner__grid {
+    padding: 24px 28px;
+    gap: 14px;
+    grid-template-columns: repeat(12, 1fr);
+  }
+  .px-banner__cell--hero {
+    grid-column: span 7;
+    grid-row: span 2;
+    min-height: 240px;
+    padding: 22px;
+  }
+  .px-banner__cell--events {
+    grid-column: span 5;
+    grid-row: span 1;
+    min-height: 0;
+  }
+  .px-banner__cell--sponsor { grid-column: span 3; }
+  .px-banner__cell--afterparty { grid-column: span 2; }
+  .px-banner__hero-sub { font-size: 16px; }
+  .px-banner__cta {
+    position: absolute;
+    right: 22px;
+    bottom: 22px;
+  }
+}

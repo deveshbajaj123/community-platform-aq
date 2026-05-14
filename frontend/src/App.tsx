@@ -66,6 +66,9 @@ import AccountApprovals from './director/AccountApprovals'
 import PostModeration from './director/PostModeration'
 import MemberDirectory from './director/MemberDirectory'
 import CategoryManagement from './director/CategoryManagement'
+
+// Paradox 2026 sub-app
+import ParadoxRoot from './paradox/ParadoxRoot'
 function App() {
   return (
     <ToastProvider>
@@ -200,6 +203,9 @@ function App() {
             <Route path="members" element={<MemberDirectory />} />
             <Route path="categories" element={<CategoryManagement />} />
           </Route>
+
+          {/* Paradox 2026 sub-app — brings its own Nav, Footer, AuthProvider, ToastProvider */}
+          <Route path="/paradox/*" element={<ParadoxRoot />} />
 
           {/* Catch all — 404 */}
           <Route path="*" element={<PublicLayout />}>

@@ -13,6 +13,7 @@ import { DEPT_COLORS } from '../lib/supabase'
 import { hasLeaderAccess } from '../lib/roles'
 import { jobOpenings, CAT_COLORS as JOB_CAT_COLORS } from '../lib/jobOpenings'
 import PostFocusModal from '../components/PostFocusModal'
+import ParadoxBanner from '../components/ParadoxBanner'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -1065,6 +1066,7 @@ export default function HomePage() {
 
   return (
     <div className="route-enter">
+      <ParadoxBanner />
       <div className="home-shell">
         {/* LEFT RAIL */}
         <LeftRail
