@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+
+    <!-- Favicon — light + dark mode aware -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+
+    <!-- Theme color — matches paper-bold background; JS in AQNav updates dynamically -->
+    <meta name="theme-color" id="aq-theme-color" content="#F4EFE0" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0A2540" />
+
+    <!-- SEO -->
+    <title>AquaTerra — student community, Kolkata</title>
+    <meta name="description" content="850 active members. 512 projects. a streetwear brand, a tuition platform, and a free marketing agency. all run by students in Kolkata since 2021." />
+    <meta name="keywords" content="AquaTerra, student NGO, Kolkata, ROOTS, ShikshAQ, welfare, events, student community" />
+    <link rel="canonical" href="https://aquaterra.in" />
+
+    <!-- Open Graph — PNG format required for broad platform support -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="AquaTerra" />
+    <meta property="og:title" content="AquaTerra — started in Kolkata. got out of hand." />
+    <meta property="og:description" content="850 active members. 512 projects. student-run since 2021. DARPAN certified. zero fees." />
+    <meta property="og:image" content="https://aquaterra.in/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:url" content="https://aquaterra.in" />
+
+    <!-- Twitter / X card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="AquaTerra — started in Kolkata. got out of hand." />
+    <meta name="twitter:description" content="850 members. 512 projects. student-run. zero fees." />
+    <meta name="twitter:image" content="https://aquaterra.in/og-image.png" />
+
+    <!-- PWA / mobile -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="AquaTerra" />
+    <meta name="mobile-web-app-capable" content="yes" />
+
+    <!-- Google Fonts — only what we use -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+
+    <style>
+      /* Prevent flash of unstyled content */
+      html { background: #F4EFE0; }
+      html[data-theme="dark"] { background: #0A2540; }
+
+      /* Screen-reader only utility */
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        padding: 0;
+        margin: -1px;
+        overflow: hidden;
+        clip: rect(0, 0, 0, 0);
+        white-space: nowrap;
+        border-width: 0;
+      }
+    </style>
+  </head>
+  <body class="noise">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

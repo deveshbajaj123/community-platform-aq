@@ -1,0 +1,469 @@
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   STUDIO MODE — modern dark cinematic theme
+   Inspired by ngoaquaterra.com clone
+   Activated by:  body[data-mode="studio"]
+   Everything is scoped — toggle off and the brutalist
+   scrapbook design returns untouched.
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+@font-face {
+  font-family: 'Neutral Face';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('fonts/NeutralFace-Bold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Neutral Face';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/NeutralFace-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Instrument Serif Studio';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/InstrumentSerif-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Instrument Serif Studio';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: url('fonts/InstrumentSerif-Italic.woff2') format('woff2');
+}
+
+/* ━━━ ROOT VARS — only when studio mode is on ━━━ */
+body[data-mode="studio"] {
+  --st-bg: #0a0a0a;
+  --st-bg-2: #111111;
+  --st-bg-3: #181818;
+  --st-card: #131313;
+  --st-card-hover: #1a1a1a;
+  --st-ink: #f7f5f0;
+  --st-ink-2: rgba(247, 245, 240, 0.78);
+  --st-ink-3: rgba(247, 245, 240, 0.55);
+  --st-line: rgba(255, 255, 255, 0.07);
+  --st-line-2: rgba(255, 255, 255, 0.14);
+  --st-mint: #54d186;
+  --st-cyan: #4cb8d4;
+  --st-warm: #e08c3c;
+  --st-grad: linear-gradient(135deg, #54d186, #4cb8d4);
+  --st-grad-text: linear-gradient(135deg, #54d186, #3e8bc2);
+
+  /* override base palette tokens used everywhere */
+  background: var(--st-bg) !important;
+  color: var(--st-ink) !important;
+  --bg: var(--st-bg);
+  --bg-2: var(--st-bg-2);
+  --bg-3: var(--st-bg-3);
+  --card: var(--st-card);
+  --paper: var(--st-bg);
+  --paper-ink: var(--st-ink);
+  --ink: var(--st-ink);
+  --ink-2: var(--st-ink-2);
+  --ink-3: var(--st-ink-3);
+  --line: var(--st-line);
+  --line-2: var(--st-line-2);
+  --mint: var(--st-mint);
+  --pink: #4cb8d4;
+  --lemon: #54d186;
+  --tomato: #e08c3c;
+  --sky: #4cb8d4;
+  --grape: #b084d4;
+
+  /* category re-tones — desaturated, all fit dark canvas */
+  --c-events: #e08c3c;
+  --c-welfare: #54d186;
+  --c-labs: #b084d4;
+  --c-ops: #4cb8d4;
+  --c-content: #e07acc;
+
+  /* type system */
+  --display: 'Neutral Face', 'Inter', system-ui, sans-serif;
+  --sans: 'Neutral Face', 'Inter', system-ui, sans-serif;
+  --serif: 'Instrument Serif Studio', 'Instrument Serif', Georgia, serif;
+  --mono: ui-monospace, 'JetBrains Mono', 'SF Mono', monospace;
+
+  --r-sm: 8px;
+  --r: 16px;
+  --r-lg: 24px;
+  --r-pill: 999px;
+
+  --st-shadow: 0 1px 2px rgba(0,0,0,0.4), 0 8px 24px rgba(0,0,0,0.35);
+  --st-shadow-lg: 0 4px 12px rgba(0,0,0,0.5), 0 24px 60px rgba(0,0,0,0.45);
+  --st-glow: 0 0 0 1px rgba(84,209,134,0.25), 0 0 24px rgba(84,209,134,0.18);
+
+  font-family: var(--st-sans, 'Neutral Face', system-ui, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: -0.005em;
+}
+
+/* ━━━ KILL THE BRUTALIST OFFSET-SHADOWS GLOBALLY ━━━ */
+body[data-mode="studio"] .card,
+body[data-mode="studio"] .post-card,
+body[data-mode="studio"] .post-card-row,
+body[data-mode="studio"] .post-card-hero,
+body[data-mode="studio"] .btn,
+body[data-mode="studio"] .input,
+body[data-mode="studio"] .textarea,
+body[data-mode="studio"] .chip,
+body[data-mode="studio"] .pulse-strip,
+body[data-mode="studio"] .post-list-row,
+body[data-mode="studio"] .avatar {
+  box-shadow: none !important;
+}
+
+/* ━━━ NAV — frosted, fixed, scroll-aware ━━━ */
+body[data-mode="studio"] .aq-nav,
+body[data-mode="studio"] nav.aq-nav {
+  position: sticky !important;
+  top: 0 !important;
+  background: rgba(10, 10, 10, 0.78) !important;
+  backdrop-filter: blur(14px) saturate(1.2);
+  -webkit-backdrop-filter: blur(14px) saturate(1.2);
+  border-bottom: 1px solid var(--st-line) !important;
+  height: 64px !important;
+}
+body[data-mode="studio"] .aq-nav .nav-link,
+body[data-mode="studio"] .aq-nav a {
+  color: var(--st-ink) !important;
+  opacity: 0.78;
+  font-family: var(--display) !important;
+  font-weight: 700;
+  font-size: 13px !important;
+  letter-spacing: 0.02em;
+  border-radius: 8px !important;
+  padding: 6px 12px !important;
+  transition: opacity 0.2s, background 0.2s, color 0.2s;
+}
+body[data-mode="studio"] .aq-nav .nav-link:hover,
+body[data-mode="studio"] .aq-nav a:hover {
+  opacity: 1;
+  background: rgba(255,255,255,0.06) !important;
+}
+body[data-mode="studio"] .aq-nav .nav-link.active,
+body[data-mode="studio"] .aq-nav a.active,
+body[data-mode="studio"] .aq-nav .chip-active {
+  color: var(--st-mint) !important;
+  background: rgba(84,209,134,0.10) !important;
+  opacity: 1;
+  border: 0 !important;
+}
+
+/* logo gets gradient */
+body[data-mode="studio"] .aq-logo,
+body[data-mode="studio"] .aq-nav .h-display {
+  font-family: var(--display) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.5px !important;
+  background: var(--st-grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent !important;
+}
+
+/* ━━━ BUTTONS — pill, gradient primary ━━━ */
+body[data-mode="studio"] .btn {
+  border-radius: 999px !important;
+  border: 1px solid var(--st-line-2) !important;
+  background: rgba(255,255,255,0.04) !important;
+  color: var(--st-ink) !important;
+  font-family: var(--display) !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  padding: 10px 20px;
+  font-size: 13px;
+  transition: background 0.18s, border-color 0.18s, transform 0.18s, box-shadow 0.18s;
+}
+body[data-mode="studio"] .btn:hover {
+  background: rgba(255,255,255,0.08) !important;
+  transform: translateY(-1px);
+}
+body[data-mode="studio"] .btn-sm { padding: 6px 14px; font-size: 12px; }
+body[data-mode="studio"] .btn-lg { padding: 14px 28px; font-size: 14px; }
+
+body[data-mode="studio"] .btn-primary,
+body[data-mode="studio"] .btn-mint {
+  background: var(--st-grad) !important;
+  color: #0a0a0a !important;
+  border: 0 !important;
+}
+body[data-mode="studio"] .btn-primary:hover,
+body[data-mode="studio"] .btn-mint:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 28px rgba(84,209,134,0.25) !important;
+}
+body[data-mode="studio"] .btn-pink,
+body[data-mode="studio"] .btn-tomato,
+body[data-mode="studio"] .btn-lemon {
+  background: rgba(255,255,255,0.06) !important;
+  color: var(--st-ink) !important;
+  border: 1px solid var(--st-line-2) !important;
+}
+body[data-mode="studio"] .btn-ghost {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+}
+body[data-mode="studio"] .btn-ghost:hover { background: rgba(255,255,255,0.06) !important; }
+
+/* ━━━ CARDS — subtle, dark, hairline ━━━ */
+body[data-mode="studio"] .card,
+body[data-mode="studio"] .post-card,
+body[data-mode="studio"] .post-card-row,
+body[data-mode="studio"] .post-card-hero {
+  background: var(--st-card) !important;
+  border: 1px solid var(--st-line) !important;
+  border-radius: var(--r) !important;
+  transition: border-color 0.2s, transform 0.2s, background 0.2s;
+}
+body[data-mode="studio"] .card:hover,
+body[data-mode="studio"] .post-card:hover,
+body[data-mode="studio"] .post-card-row:hover,
+body[data-mode="studio"] .post-card-hero:hover {
+  background: var(--st-card-hover) !important;
+  border-color: var(--st-line-2) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: var(--st-shadow-lg) !important;
+}
+body[data-mode="studio"] .post-card-thumb {
+  border-right: 1px solid var(--st-line) !important;
+  background-image: none !important;
+}
+
+/* ━━━ INPUTS — flat, dark, focus-glow ━━━ */
+body[data-mode="studio"] .input,
+body[data-mode="studio"] .textarea {
+  background: var(--st-bg-2) !important;
+  border: 1px solid var(--st-line-2) !important;
+  border-radius: 12px !important;
+  color: var(--st-ink) !important;
+  font-family: var(--sans) !important;
+}
+body[data-mode="studio"] .input:focus,
+body[data-mode="studio"] .textarea:focus {
+  border-color: var(--st-mint) !important;
+  box-shadow: 0 0 0 3px rgba(84,209,134,0.15) !important;
+}
+body[data-mode="studio"] .input::placeholder,
+body[data-mode="studio"] .textarea::placeholder { color: var(--st-ink-3); }
+
+/* ━━━ CHIPS / PILLS ━━━ */
+body[data-mode="studio"] .chip {
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid var(--st-line-2) !important;
+  color: var(--st-ink-2) !important;
+  border-radius: 999px !important;
+  padding: 5px 12px !important;
+  font-size: 11px !important;
+  font-family: var(--display) !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase;
+  box-shadow: none !important;
+}
+body[data-mode="studio"] .chip:hover { background: rgba(255,255,255,0.10) !important; color: var(--st-ink) !important; }
+body[data-mode="studio"] .chip-active {
+  background: var(--st-grad) !important;
+  color: #0a0a0a !important;
+  border: 0 !important;
+}
+body[data-mode="studio"] .chip.cat-events { background: rgba(224,140,60,0.14) !important; border-color: rgba(224,140,60,0.4) !important; color: #e8a567 !important; }
+body[data-mode="studio"] .chip.cat-welfare { background: rgba(84,209,134,0.14) !important; border-color: rgba(84,209,134,0.4) !important; color: #7ae0a0 !important; }
+body[data-mode="studio"] .chip.cat-labs { background: rgba(176,132,212,0.14) !important; border-color: rgba(176,132,212,0.4) !important; color: #c4a4e0 !important; }
+body[data-mode="studio"] .chip.cat-operations { background: rgba(76,184,212,0.14) !important; border-color: rgba(76,184,212,0.4) !important; color: #7ad0e8 !important; }
+body[data-mode="studio"] .chip.cat-content { background: rgba(224,122,204,0.14) !important; border-color: rgba(224,122,204,0.4) !important; color: #ec98d8 !important; }
+
+/* ━━━ AVATARS — keep round, soften border ━━━ */
+body[data-mode="studio"] .avatar {
+  border: 1px solid rgba(0,0,0,0.4) !important;
+  font-family: var(--display) !important;
+}
+
+/* ━━━ TYPE SYSTEM — Neutral Face + Instrument Serif accents ━━━ */
+body[data-mode="studio"] {
+  font-family: var(--sans);
+}
+body[data-mode="studio"] .h-display,
+body[data-mode="studio"] h1.h-display,
+body[data-mode="studio"] h2.h-display,
+body[data-mode="studio"] h3.h-display {
+  font-family: var(--display) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  text-transform: none !important;
+}
+body[data-mode="studio"] .mono { font-family: var(--mono) !important; letter-spacing: 0.02em; }
+body[data-mode="studio"] .upper { letter-spacing: 0.08em; }
+
+/* serif italic accent — used for tagline-y text in the new mode */
+body[data-mode="studio"] .serif-accent {
+  font-family: var(--serif) !important;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+
+/* ━━━ KILL the noisy halftone post-image stripes; use gradient washes ━━━ */
+body[data-mode="studio"] .post-img-placeholder {
+  background-image:
+    linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02) 40%, rgba(0,0,0,0.18)),
+    radial-gradient(circle at 30% 30%, rgba(84,209,134,0.18), transparent 60%) !important;
+  border: 0 !important;
+}
+body[data-mode="studio"] .post-card-thumb {
+  background-image:
+    linear-gradient(135deg, rgba(255,255,255,0.04), rgba(0,0,0,0.18)),
+    radial-gradient(circle at 30% 30%, rgba(84,209,134,0.20), transparent 60%) !important;
+}
+
+/* ━━━ STICKERS — tone down inside studio mode ━━━ */
+body[data-mode="studio"] .sticker {
+  background: rgba(255,255,255,0.06) !important;
+  color: var(--st-ink) !important;
+  border: 1px solid var(--st-line-2) !important;
+  border-radius: 999px !important;
+  transform: none !important;
+  font-family: var(--display) !important;
+  font-weight: 700 !important;
+  font-size: 10px !important;
+  letter-spacing: 0.06em !important;
+  padding: 3px 10px !important;
+  box-shadow: none !important;
+}
+body[data-mode="studio"] .sticker-mint { background: rgba(84,209,134,0.14) !important; color: #7ae0a0 !important; border-color: rgba(84,209,134,0.35) !important; }
+body[data-mode="studio"] .sticker-pink,
+body[data-mode="studio"] .sticker-tomato,
+body[data-mode="studio"] .sticker-lemon { background: rgba(255,255,255,0.06) !important; color: var(--st-ink) !important; }
+
+/* ━━━ MARQUEES — calmer ━━━ */
+body[data-mode="studio"] .marquee {
+  background: var(--st-bg-2) !important;
+  color: var(--st-ink) !important;
+  border-top: 1px solid var(--st-line) !important;
+  border-bottom: 1px solid var(--st-line) !important;
+  border-left: 0 !important; border-right: 0 !important;
+}
+
+/* ━━━ FOOTER ━━━ */
+body[data-mode="studio"] .aq-footer {
+  background: var(--st-bg) !important;
+  color: var(--st-ink) !important;
+  border-top: 1px solid var(--st-line);
+}
+body[data-mode="studio"] .aq-footer h5 { color: var(--st-mint) !important; }
+
+/* ━━━ DASHED LINES SOFTENED ━━━ */
+body[data-mode="studio"] .time-section::after,
+body[data-mode="studio"] [style*="dashed"] {
+  border-color: var(--st-line-2) !important;
+}
+
+/* ━━━ HERO / HOMEPAGE-SPECIFIC TWEAKS ━━━ */
+body[data-mode="studio"] .home-side .card[style*="background: var(--pink)"],
+body[data-mode="studio"] .home-side .card[style*="background: var(--mint)"],
+body[data-mode="studio"] .home-side .card[style*="background: var(--lemon)"],
+body[data-mode="studio"] .home-side .card[style*="background: var(--bg-3)"] {
+  background: var(--st-card) !important;
+  color: var(--st-ink) !important;
+}
+body[data-mode="studio"] .home-side .card * { color: inherit !important; }
+body[data-mode="studio"] .home-side .card .h-display { background: var(--st-grad-text); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent !important; }
+
+/* sidebar links */
+body[data-mode="studio"] .side-link {
+  color: var(--st-ink-2) !important;
+  border-radius: 10px !important;
+  border: 1px solid transparent !important;
+  transition: background 0.16s, border-color 0.16s, color 0.16s;
+}
+body[data-mode="studio"] .side-link:hover {
+  background: rgba(255,255,255,0.05) !important;
+  color: var(--st-ink) !important;
+  border-color: var(--st-line) !important;
+}
+
+/* ━━━ PULSE STRIP — frosted ━━━ */
+body[data-mode="studio"] .pulse-strip {
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid var(--st-line) !important;
+  border-radius: 999px !important;
+  backdrop-filter: blur(8px);
+}
+body[data-mode="studio"] .pulse-dot { background: var(--st-mint) !important; }
+@keyframes pulse-blink {
+  0%   { box-shadow: 0 0 0 0 rgba(84,209,134,.7); }
+  70%  { box-shadow: 0 0 0 8px rgba(84,209,134,0); }
+  100% { box-shadow: 0 0 0 0 rgba(84,209,134,0); }
+}
+
+/* ━━━ TIME SECTION HEADER ━━━ */
+body[data-mode="studio"] .time-section .badge {
+  background: var(--st-grad) !important;
+  color: #0a0a0a !important;
+  border: 0 !important;
+  border-radius: 999px !important;
+  padding: 3px 10px !important;
+}
+
+/* ━━━ DIVIDERS ━━━ */
+body[data-mode="studio"] hr,
+body[data-mode="studio"] [style*="border-top: 2px dashed"],
+body[data-mode="studio"] [style*="border-bottom: 2px dashed"] {
+  border-style: solid !important;
+  border-color: var(--st-line) !important;
+  border-width: 1px !important;
+}
+
+/* ━━━ MOBILE TABBAR ━━━ */
+body[data-mode="studio"] .mobile-tabbar {
+  background: rgba(10,10,10,0.92) !important;
+  backdrop-filter: blur(14px);
+  border-top: 1px solid var(--st-line) !important;
+}
+
+/* ━━━ STATS BLOCKS ━━━ */
+body[data-mode="studio"] [style*="textAlign: \"center\""][style*="border"] {
+  border: 1px solid var(--st-line) !important;
+  border-radius: 12px !important;
+}
+
+/* ━━━ TWEAKS PANEL — keep readable in studio mode ━━━ */
+body[data-mode="studio"] .tweaks-panel { color: var(--st-ink); }
+
+/* ━━━ NOISE / GRAIN — disable in studio (cleaner aesthetic) ━━━ */
+body[data-mode="studio"]::before,
+body[data-mode="studio"]::after { display: none !important; }
+
+/* ━━━ SCROLLBAR ━━━ */
+body[data-mode="studio"] ::-webkit-scrollbar-track { background: var(--st-bg-2) !important; }
+body[data-mode="studio"] ::-webkit-scrollbar-thumb {
+  background: var(--st-grad) !important;
+  border: 2px solid var(--st-bg-2) !important;
+}
+
+/* ━━━ STUDIO-MODE-ONLY ACCENTS — gradient text helpers ━━━ */
+body[data-mode="studio"] .grad-text {
+  background: var(--st-grad-text);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent !important;
+}
+
+/* ━━━ SCROLL-PROGRESS BAR (added by JS, only visible in studio) ━━━ */
+body[data-mode="studio"] #st-scroll-progress {
+  position: fixed; top: 0; left: 0; height: 2px;
+  background: var(--st-grad);
+  z-index: 9999;
+  transition: width 0.08s linear;
+  pointer-events: none;
+  border-radius: 0 2px 2px 0;
+}
+
+/* hide it when not studio */
+body:not([data-mode="studio"]) #st-scroll-progress { display: none; }

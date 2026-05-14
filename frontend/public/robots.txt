@@ -1,0 +1,34 @@
+User-agent: *
+Allow: /
+
+# Public pages — fully crawlable
+Allow: /projects
+Allow: /blog
+Allow: /about
+Allow: /everything-we-do
+Allow: /volunteer
+Allow: /collaborations
+Allow: /support
+Allow: /contact
+Allow: /faq
+Allow: /opportunities
+Allow: /schools
+Allow: /classes
+
+# Community platform — members only, keep out of index
+Disallow: /feed
+Disallow: /profile
+Disallow: /notifications
+Disallow: /settings
+Disallow: /search
+Disallow: /teams
+Disallow: /director
+
+# Auth flows — no indexing needed
+Disallow: /login
+Disallow: /register
+Disallow: /pending
+Disallow: /rejected
+Disallow: /volunteer/thank-you
+
+Sitemap: https://www.ngoaquaterra.com/sitemap.xml

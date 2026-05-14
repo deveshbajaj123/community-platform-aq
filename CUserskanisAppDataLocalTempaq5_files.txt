@@ -1,0 +1,231 @@
+===FILE: aq-5-0-try/project/shared.jsx===
+// shared.jsx — Nav, Footer, icons, shared widgets for AQ 5.0
+
+const { useState: uS, useEffect: uE, useRef: uR, useCallback: uC } = React;
+
+// ─── Dept colour map ──────────────────────────────────────────────────
+const DEPT_COLORS = {
+  welfare:  "#3a7d5a",
+  events:   "#d4620a",
+  labs:     "#7c4dbc",
+  ops:      "#1a6b7a",
+  content:  "#b8402a",
+  all:      "#2a9d6e",
+};
+
+const AVATAR_COLORS = [
+  "#3a7d5a","#d4620a","#7c4dbc","#1a6b7a","#b8402a","#2a9d6e","#8b5a2b","#4a6d8c"
+];
+function avatarColor(str) {
+  let h = 0; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) & 0xffff;
+  return AVATAR_COLORS[h % AVATAR_COLORS.length];
+}
+
+// ─── Icons ───────────────────────────────────────────────────────────
+function Icon({ name, size = 16 }) {
+  const s = { width: size, height: size, display: "block", flexShrink: 0 };
+  const paths = {
+    sun: <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></g>,
+    moon: <path fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>,
+    search: <g fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></g>,
+    arrow: <path fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" d="M5 12h14m-6-6 6 6-6 6"/>,
+    arrowDiag: <path fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" d="M7 17 17 7M7 7h10v10"/>,
+    heart: <path fill="none" stroke="currentColor" strokeWidth="1.6" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>,
+    heartFill: <path fill="currentColor" d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>,
+    comment: <path fill="none" stroke="currentColor" strokeWidth="1.6" d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>,
+    share: <g fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.29 13.29 7.42 4.42M15.71 6.29 8.29 10.71"/></g>,
+    plus: <path fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" d="M12 5v14M5 12h14"/>,
+    close: <path fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" d="M18 6 6 18M6 6l12 12"/>,
+    filter: <path fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" d="M22 3H2l8 9.46V19l4 2v-8.54L22 3z"/>,
+    insta: <g fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.5" fill="currentColor"/></g>,
+    linkedin: <g fill="none" stroke="currentColor" strokeWidth="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M7 10v7M7 7v.5M11 17v-4a2 2 0 0 1 4 0v4M11 10v7" strokeLinecap="round"/></g>,
+    bookmark: <path fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/>,
+    globe: <g fill="none" stroke="currentColor" strokeWidth="1.6"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></g>,
+    chevron: <path fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" d="m9 18 6-6-6-6"/>,
+  };
+  return <svg viewBox="0 0 24 24" style={s}>{paths[name]}</svg>;
+}
+
+// ─── Brand wordmark ──────────────────────────────────────────────────
+function Brand({ size = 15 }) {
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <svg width={size + 2} height={size + 2} viewBox="0 0 20 20" fill="none">
+        <circle cx="10" cy="10" r="9" stroke="var(--accent)" strokeWidth="1.5"/>
+        <path d="M10 3c0 0 4 3 4 7s-4 7-4 7" stroke="var(--accent)" strokeWidth="1.2" fill="none"/>
+        <path d="M10 3c0 0-4 3-4 7s4 7 4 7" stroke="var(--accent)" strokeWidth="1.2" fill="none"/>
+        <path d="M3 10h14" stroke="var(--accent)" strokeWidth="1.2"/>
+      </svg>
+      <span style={{ fontFamily: "var(--f-display)", fontWeight: 700, fontSize: size, letterSpacing: "-0.02em", textTransform: "uppercase" }}>
+        <span style={{ color: "var(--accent)" }}>AQ</span><span style={{ color: "var(--txt)" }}>uaTerra</span>
+      </span>
+    </span>
+  );
+}
+
+// ─── Scroll reveal hook ──────────────────────────────────────────────
+function useReveal() {
+  uE(() => {
+    const obs = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add("visible")
+
+===FILE: aq-5-0-try/project/page-everything.jsx===
+// page-everything.jsx — AQ 5.0 — Dept cards, impact wall, join CTA
+
+const { useState: uSE, useEffect: uEE, useRef: uRE } = React;
+
+const DEPTS = [
+  {
+    id: "projects",
+    label: "Projects & Welfare",
+    dept: "welfare",
+    color: "#3a7d5a",
+    count: "534",
+    unit: "drives",
+    desc: "Workshops, plantation, animal welfare, medical camps, distribution drives — 534 documented and counting.",
+    tags: ["Plantation Drive", "Animal Welfare", "Medical Camps", "Workshops", "Sundarbans"],
+    stat: "3,500+ kids reached",
+  },
+  {
+    id: "events",
+    label: "Events & Culture",
+    dept: "events",
+    color: "#d4620a",
+    count: "12",
+    unit: "major events",
+    desc: "Fundraisers and cultural nights that bankroll the welfare work. Paradox. Disco Diwali. Starry Night. We put on a show.",
+    tags: ["Paradox", "Disco Diwali", "Starry Night", "Sponsorships", "Ticketing"],
+    stat: "₹18L+ raised",
+  },
+  {
+    id: "startups",
+    label: "Startups & Labs",
+    dept: "labs",
+    color: "#7c4dbc",
+    count: "3",
+    unit: "ventures",
+    desc: "ROOTS streetwear. ShikshAQ free tutoring. AQ.Ventures marketing arm. Student-run. Actually profitable.",
+    tags: ["ROOTS", "ShikshAQ", "AQ.Ventures", "Brand", "Product"],
+    stat: "Self-funded model",
+  },
+  {
+    id: "core",
+    label: "Core Departments",
+    dept: "ops",
+    color: "#1a6b7a",
+    count: "10+",
+    unit: "teams",
+    desc: "HR · Finance · Collabs · Social Media · Tech · Documentation. The engine that makes everything else possible.",
+    tags: ["HR", "Finance", "Collabs", "Social", "Tech", "Docs"],
+    stat: "1,100+ members",
+  },
+];
+
+function DeptCard({ d, active, onClick, index }) {
+  return (
+    <button
+      onClick={onClick}
+      data-dept={d.dept}
+      className={`dept-card reveal reveal-delay-${index + 1} ${active ? "active" : ""}`}
+      style={{ "--dept-color": d.color, width: "100%", textAlign: "left", display: "block" }}
+    >
+      {/* Number accent */}
+      <div style={{
+        fontFamily: "var(--f-display)",
+        fontWeight: 700,
+        fontSize: "clamp(48px, 5vw, 72px)",
+        letterSpacing: "-0.06em",
+        lineHeight: 1,
+        color: active ? d.color : "var(--txt-4)",
+        transition: "color 0.25s",
+        marginBottom: 12,
+      }}>{d.count}</div>
+
+      <div style={{ fontFamily: "var(--f-mono)", fontSize: 10, letterSpacing: "0.08em", color: d.color, textTransform: "uppercase", marginBottom: 6 }}>{d.unit}</div>
+
+      <div style={{
+        fontFamily: "var(--f-display)",
+        fontWeight: 700,
+        fontSize: 18,
+        letterSpacing: "-0.02em",
+        textTransform: "uppercase",
+        lineHeight: 1.1,
+        color: "var(--txt)",
+        marginBottom: 12,
+      }}>{d.label}</div>
+
+      <p style={{
+        fontFamily: "var(--f-display)",
+        fontSize: 12,
+        lineHeight: 1.65,
+        color: "var(--txt-3)",
+        marginBottom: 16,
+        fontWeight: 400,
+      }}>{d.desc}</p>
+
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+        {d.tags.map(t => (
+          <span key={t} style={{
+            padding: "3px 9px",
+            borderRadius: 2,
+            fontFamily: "var(--f-display)",
+            fontWeight: 700,
+            fontSize: 9,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            background: active ? `color-mix(in oklab, ${d.color} 15%, transparent)` : "var(--surface-2)",
+            color: active ? d.color : "var(--txt-3)",
+            border: `1px solid ${active ? d.color + "40" : "var(--line)"}`,
+            transition: "0.25s",
+          }}>{t}</span>
+        ))}
+      </div>
+
+      <div style={{
+        marginTop: 20,
+        paddingTop: 16,
+        borderTop: `1px solid ${active ? d.color + "40" : "var(--line)"}`,
+        fontFamily: "var(--f-mono)",
+        fontSize: 10,
+        color: active ? d.color : "var(--txt-4)",
+        transition: "color 0.25s",
+      }}>{d.stat}</div>
+    </button>
+  );
+}
+
+function ImpactSection() {
+  const D = window.AQ_DATA;
+  return (
+    <section style={{
+      background: "var(--ink)",
+      color: "#f4f1ea",
+      padding: "0",
+      borderTop: "1px solid rgba(255,255,255,0.06)",
+    }}>
+      {/* Section label row */}
+      <div style={{
+        padding: "40px 0 32px",
+        borderBottom: "1px solid rgba(255,255,255,0.06)",
+      }}>
+        <div className="wrap" style={{ display: "flex", alignItems: "baseline", gap: 24 }}>
+          <div className="t-label" style={{ color: "rgba(244,241,234,0.4)" }}>Real Impact</div>
+          <div style={{
+            fontFamily: "var(--f-display)",
+            fontWeight: 700,
+            fontSize: "clamp(28px, 4vw, 48px)",
+            letterSpacing: "-0.04em",
+            textTransform: "uppercase",
+            lineHeight: 1,
+            color: "#f4f1ea",
+          }}>Not Big Talk.</div>
+        </div>
+      </div>
+
+      {/* Stats grid */}
+      <div className="wrap">
+        <div style={{
+          display: "grid",
+          gridTemplateColum
+
